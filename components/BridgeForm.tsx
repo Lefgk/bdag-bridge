@@ -106,7 +106,7 @@ export function BridgeForm() {
         {/* Token */}
         <div>
           <label className="block text-xs text-gray-500 uppercase tracking-wider mb-2">Token</label>
-          <TokenSelector tokens={tokens} selected={token} onSelect={setToken} />
+          <TokenSelector tokens={tokens} selected={token} onSelect={setToken} sourceChainId={sourceChainId} disabled={isActive} />
         </div>
 
         {/* Amount */}

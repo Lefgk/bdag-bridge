@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { useAccount, useWriteContract, usePublicClient, useSwitchChain } from 'wagmi';
 import { parseUnits, maxUint256, decodeEventLog } from 'viem';
 import { ROUTER_ABI, BRIDGE_ERC20_ABI, ERC20_ABI } from '@/lib/abi';
@@ -9,6 +9,44 @@ import { Token } from '@/config/tokens';
 import { blockdag } from '@/config/chains';
 
 export type BridgeStatus = 'idle' | 'switching' | 'approving' | 'depositing' | 'confirming' | 'waiting_relayer' | 'released' | 'error';
+
+const STORAGE_KEY = 'bdag_bridge_state';
+
+interface PersistedBridgeState {
+  status: BridgeStatus;
+  txHash?: string;
+  depositNumber?: string; // bigint serialized as string
+  sourceChainId?: number;
+  timestamp: number; // ms since epoch
+}
+
+function saveState(state: PersistedBridgeState) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {}
+}
+
+function loadState(): PersistedBridgeState | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PersistedBridgeState;
+    // Expire after 24 hours
+    if (Date.now() - parsed.timestamp > 24 * 60 * 60 * 1000) {
+      localStorage.removeItem(STORAGE_KEY);
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function clearState() {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {}
+}
 
 export function useBridge() {
   const { address, chainId } = useAccount();
@@ -22,6 +60,7 @@ export function useBridge() {
   const [depositNumber, setDepositNumber] = useState<bigint>();
   const [error, setError] = useState<string>();
   const pollRef = useRef<ReturnType<typeof setInterval>>();
+  const restoredRef = useRef(false);
 
   // Poll BlockDAG to check if deposit was released
   const pollForRelease = useCallback((sourceChainId: number, depNum: bigint) => {
@@ -33,7 +72,7 @@ export function useBridge() {
     let attempts = 0;
     pollRef.current = setInterval(async () => {
       attempts++;
-      if (attempts > 60) { // 5 min timeout
+      if (attempts > 720) { // 1 hour timeout (720 * 5s)
         clearInterval(pollRef.current!);
         return;
       }
@@ -58,12 +97,61 @@ export function useBridge() {
         // releasedDeposits returns bool — 0x...01 means true
         if (json.result && json.result !== '0x' + '0'.repeat(64)) {
           setStatus('released');
+          clearState();
           clearInterval(pollRef.current!);
         }
       } catch {
         // ignore poll errors
       }
     }, 5000);
+  }, []);
+
+  // Restore state from localStorage on mount
+  useEffect(() => {
+    if (restoredRef.current) return;
+    restoredRef.current = true;
+
+    const saved = loadState();
+    if (!saved) return;
+
+    // Only restore if we were in a waiting state (not idle/error/released)
+    if (saved.status === 'waiting_relayer' || saved.status === 'confirming') {
+      setStatus(saved.status);
+      if (saved.txHash) setTxHash(saved.txHash);
+      if (saved.depositNumber) {
+        const depNum = BigInt(saved.depositNumber);
+        setDepositNumber(depNum);
+        // Resume polling if we have deposit info
+        if (saved.sourceChainId) {
+          pollForRelease(saved.sourceChainId, depNum);
+        }
+      }
+    } else if (saved.status === 'released') {
+      // Show the completed state so user can see it
+      setStatus('released');
+      if (saved.txHash) setTxHash(saved.txHash);
+      if (saved.depositNumber) setDepositNumber(BigInt(saved.depositNumber));
+    }
+  }, [pollForRelease]);
+
+  // Persist state whenever status/txHash/depositNumber changes
+  const persistState = useCallback((
+    newStatus: BridgeStatus,
+    newTxHash?: string,
+    newDepositNumber?: bigint,
+    sourceChainId?: number,
+  ) => {
+    if (newStatus === 'idle' || newStatus === 'error') {
+      // Don't persist idle/error — but keep released for history
+      return;
+    }
+    saveState({
+      status: newStatus,
+      txHash: newTxHash,
+      depositNumber: newDepositNumber?.toString(),
+      sourceChainId,
+      timestamp: Date.now(),
+    });
   }, []);
 
   const bridge = useCallback(async (
@@ -102,6 +190,7 @@ export function useBridge() {
         });
         setTxHash(hash);
         setStatus('confirming');
+        persistState('confirming', hash, undefined, sourceChainId);
 
         // Wait for receipt
         if (publicClient) {
@@ -116,6 +205,7 @@ export function useBridge() {
                     const depNum = (decoded.args as any).depositNumber;
                     setDepositNumber(depNum);
                     setStatus('waiting_relayer');
+                    persistState('waiting_relayer', hash, depNum, sourceChainId);
                     pollForRelease(sourceChainId, depNum);
                     return;
                   }
@@ -123,6 +213,7 @@ export function useBridge() {
               }
             } catch {}
             setStatus('waiting_relayer');
+            persistState('waiting_relayer', hash, undefined, sourceChainId);
           } else {
             setError('Transaction reverted');
             setStatus('error');
@@ -169,6 +260,7 @@ export function useBridge() {
         });
         setTxHash(hash);
         setStatus('confirming');
+        persistState('confirming', hash, undefined, sourceChainId);
 
         // Wait for receipt
         if (publicClient) {
@@ -182,6 +274,7 @@ export function useBridge() {
                     const depNum = (decoded.args as any).depositNumber;
                     setDepositNumber(depNum);
                     setStatus('waiting_relayer');
+                    persistState('waiting_relayer', hash, depNum, sourceChainId);
                     pollForRelease(sourceChainId, depNum);
                     return;
                   }
@@ -189,6 +282,7 @@ export function useBridge() {
               }
             } catch {}
             setStatus('waiting_relayer');
+            persistState('waiting_relayer', hash, undefined, sourceChainId);
           } else {
             setError('Transaction reverted');
             setStatus('error');
@@ -205,10 +299,11 @@ export function useBridge() {
       }
       setStatus('error');
     }
-  }, [address, chainId, switchChainAsync, writeContractAsync, publicClient, pollForRelease]);
+  }, [address, chainId, switchChainAsync, writeContractAsync, publicClient, pollForRelease, persistState]);
 
   const reset = useCallback(() => {
     if (pollRef.current) clearInterval(pollRef.current);
+    clearState();
     setStatus('idle');
     setTxHash(undefined);
     setReleaseTxHash(undefined);
