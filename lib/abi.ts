@@ -1,0 +1,152 @@
+export const ROUTER_ABI = [
+  {
+    inputs: [{ name: '_token', type: 'address', internalType: 'contract IERC20' }, { name: '_amount', type: 'uint256' }, { name: '_receiverAddress', type: 'address' }, { name: '_targetChainId', type: 'uint256' }],
+    name: 'depositERC20TokensToBridge',
+    outputs: [],
+    stateMutability: 'payable',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: '_amount', type: 'uint256' }, { name: '_receiverAddress', type: 'address' }, { name: '_targetChainId', type: 'uint256' }],
+    name: 'depositNativeTokensToBridge',
+    outputs: [],
+    stateMutability: 'payable',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: '_token', type: 'address', internalType: 'contract IERC20' }, { name: '_amount', type: 'uint256' }],
+    name: 'addLiquidityERC20',
+    outputs: [],
+    stateMutability: 'payable',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: '_amount', type: 'uint256' }],
+    name: 'addLiquidityNative',
+    outputs: [],
+    stateMutability: 'payable',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: '_token', type: 'address', internalType: 'contract IERC20' }, { name: '_lpAmount', type: 'uint256' }],
+    name: 'withdrawLiquidityERC20',
+    outputs: [],
+    stateMutability: 'payable',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: '_tokenAddress', type: 'address' }, { name: '_amountToBeBridged', type: 'uint256' }],
+    name: 'getERC20BridgeFeeQuote',
+    outputs: [{ name: 'bridgeFee', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: '_tokenAddress', type: 'address' }],
+    name: 'getLPToken',
+    outputs: [{ name: '', type: 'address' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'getChainID',
+    outputs: [{ name: 'id', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+] as const;
+
+export const ERC20_ABI = [
+  {
+    inputs: [{ name: 'owner', type: 'address' }, { name: 'spender', type: 'address' }],
+    name: 'allowance',
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: 'spender', type: 'address' }, { name: 'amount', type: 'uint256' }],
+    name: 'approve',
+    outputs: [{ name: '', type: 'bool' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: 'account', type: 'address' }],
+    name: 'balanceOf',
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'decimals',
+    outputs: [{ name: '', type: 'uint8' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'symbol',
+    outputs: [{ name: '', type: 'string' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'totalSupply',
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+] as const;
+
+export const BRIDGE_ERC20_ABI = [
+  {
+    inputs: [],
+    name: 'depositCount',
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: '', type: 'uint256' }, { name: '', type: 'uint256' }],
+    name: 'releasedDeposits',
+    outputs: [{ name: '', type: 'bool' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    inputs: [],
+    name: 'defaultBridgeFee',
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: 'token', type: 'address' },
+      { indexed: true, name: 'amount', type: 'uint256' },
+      { indexed: true, name: 'receiver', type: 'address' },
+      { indexed: false, name: 'sourceChainId', type: 'uint256' },
+      { indexed: false, name: 'targetChainId', type: 'uint256' },
+      { indexed: false, name: 'depositNumber', type: 'uint256' },
+    ],
+    name: 'ERC20Deposited',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: 'token', type: 'address' },
+      { indexed: true, name: 'amount', type: 'uint256' },
+      { indexed: true, name: 'receiver', type: 'address' },
+      { indexed: false, name: 'depositChainId', type: 'uint256' },
+      { indexed: false, name: 'depositNumber', type: 'uint256' },
+    ],
+    name: 'ERC20Released',
+    type: 'event',
+  },
+] as const;
