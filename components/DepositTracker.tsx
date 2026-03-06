@@ -1,6 +1,7 @@
 'use client';
 
 import type { BridgeStatus } from '@/hooks/useBridge';
+import { chainName, explorerTxUrl, explorerLabel, getDestChainId } from '@/config/chainUtils';
 
 interface Props {
   status: BridgeStatus;
@@ -11,24 +12,6 @@ interface Props {
   onReset?: () => void;
   confirmations?: number;
   requiredConfirmations?: number;
-}
-
-function chainName(chainId: number): string {
-  if (chainId === 56) return 'BNB Chain';
-  if (chainId === 1404) return 'BlockDAG';
-  return `Chain ${chainId}`;
-}
-
-function explorerTxUrl(hash: string, chainId: number): string {
-  if (chainId === 56) return `https://bscscan.com/tx/${hash}`;
-  if (chainId === 1404) return `https://bdagscan.com/tx/${hash}`;
-  return '#';
-}
-
-function explorerLabel(chainId: number): string {
-  if (chainId === 56) return 'BSCScan';
-  if (chainId === 1404) return 'BDAGScan';
-  return 'Explorer';
 }
 
 function getStepIndex(status: BridgeStatus): number {
@@ -48,7 +31,7 @@ export function DepositTracker({ status, txHash, releaseTxHash, sourceChainId, e
   if (status === 'idle' || status === 'switching') return null;
 
   const srcChain = sourceChainId || 56;
-  const destChain = srcChain === 1404 ? 56 : 1404;
+  const destChain = getDestChainId(srcChain);
   const srcName = chainName(srcChain);
   const destName = chainName(destChain);
 
@@ -86,14 +69,12 @@ export function DepositTracker({ status, txHash, releaseTxHash, sourceChainId, e
         )}
       </div>
 
-      {/* Success banner */}
       {isComplete && (
         <div className="mb-4 p-3 rounded-lg bg-green-500/10 border border-green-500/30">
           <p className="text-green-400 text-sm font-semibold">Bridge complete! Tokens received on {destName}.</p>
         </div>
       )}
 
-      {/* Waiting for relayer message */}
       {status === 'waiting_relayer' && (
         <div className="mb-4 p-3 rounded-lg bg-accent/10 border border-accent/30">
           <p className="text-accent text-sm">Deposit confirmed on {srcName}. Waiting for relayer to release on {destName}...</p>
@@ -137,7 +118,6 @@ export function DepositTracker({ status, txHash, releaseTxHash, sourceChainId, e
                   {label}
                 </span>
               </div>
-              {/* Confirmation progress bar */}
               {i === 2 && showConfirmations && state === 'active' && (
                 <div className="ml-9 mt-1.5 mb-1">
                   <div className="h-1.5 rounded-full bg-gray-700 overflow-hidden">

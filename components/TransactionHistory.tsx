@@ -3,12 +3,7 @@
 import { useState } from 'react';
 import { useAccount } from 'wagmi';
 import { useBridgeHistory, lookupDepositByTxHash, BridgeTx } from '@/hooks/useBridgeHistory';
-
-function chainLabel(chainId: number): string {
-  if (chainId === 56) return 'BSC';
-  if (chainId === 1404) return 'BDAG';
-  return String(chainId);
-}
+import { chainLabel, explorerTxUrl } from '@/config/chainUtils';
 
 function directionBadge(sourceChainId: number, targetChainId: number) {
   const label = `${chainLabel(sourceChainId)} → ${chainLabel(targetChainId)}`;
@@ -22,12 +17,6 @@ function directionBadge(sourceChainId: number, targetChainId: number) {
       {label}
     </span>
   );
-}
-
-function explorerTxUrl(txHash: string, chainId: number): string {
-  if (chainId === 56) return `https://bscscan.com/tx/${txHash}`;
-  if (chainId === 1404) return `https://bdagscan.com/tx/${txHash}`;
-  return '#';
 }
 
 function truncateHash(hash: string): string {
@@ -110,7 +99,7 @@ export function TransactionHistory() {
 
   if (!isConnected) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 max-w-4xl mx-auto">
         <div className="text-center">
           <h1 className="text-3xl font-sans font-bold text-white mb-2">Transactions</h1>
           <p className="text-gray-400 text-sm">View your bridge transaction history</p>
@@ -123,7 +112,7 @@ export function TransactionHistory() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-4xl mx-auto">
       <div className="text-center">
         <h1 className="text-3xl font-sans font-bold text-white mb-2">Transactions</h1>
         <p className="text-gray-400 text-sm">View your bridge transaction history</p>
