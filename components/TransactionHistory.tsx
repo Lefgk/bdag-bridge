@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useAccount } from 'wagmi';
 import { useBridgeHistory, lookupDepositByTxHash, BridgeTx } from '@/hooks/useBridgeHistory';
-import { chainLabel, explorerTxUrl } from '@/config/chainUtils';
+import { chainLabel, explorerTxUrl, RELAYER_API } from '@/config/chainUtils';
 
 function directionBadge(sourceChainId: number, targetChainId: number) {
   const label = `${chainLabel(sourceChainId)} → ${chainLabel(targetChainId)}`;
@@ -95,11 +95,54 @@ export function TransactionHistory() {
     }
   };
 
+  const [forceLoading, setForceLoading] = useState<string | null>(null);
+  const [forceResult, setForceResult] = useState<string>();
+
+  const handleForceCheck = async (txHash: string) => {
+    setForceLoading(txHash);
+    setForceResult(undefined);
+    try {
+      const res = await fetch(`${RELAYER_API}/check-tx/${txHash}`);
+      const data = await res.json();
+      if (data.status === 'released') {
+        setForceResult(`Released! Tx: ${data.releaseTxHash}`);
+        refetch();
+      } else if (data.status === 'already_processed') {
+        setForceResult(`Already processed. Tx: ${data.releaseTxHash}`);
+        refetch();
+      } else {
+        setForceResult(data.error || 'Unknown result');
+      }
+    } catch (err: any) {
+      setForceResult(`Error: ${err.message}`);
+    } finally {
+      setForceLoading(null);
+    }
+  };
+
+  const handleForceAll = async () => {
+    const pending = txs.filter(tx => !tx.released);
+    if (pending.length === 0) return;
+    setForceLoading('all');
+    setForceResult(undefined);
+    let released = 0;
+    for (const tx of pending) {
+      try {
+        const res = await fetch(`${RELAYER_API}/check-tx/${tx.depositTxHash}`);
+        const data = await res.json();
+        if (data.status === 'released' || data.status === 'already_processed') released++;
+      } catch { /* skip */ }
+    }
+    setForceResult(`Processed ${released}/${pending.length} pending deposits`);
+    setForceLoading(null);
+    refetch();
+  };
+
   const filteredTxs = filterUnreceived ? txs.filter(tx => !tx.released) : txs;
 
   if (!isConnected) {
     return (
-      <div className="space-y-6 max-w-4xl mx-auto">
+      <div className="space-y-6 max-w-6xl mx-auto">
         <div className="text-center">
           <h1 className="text-3xl font-sans font-bold text-white mb-2">Transactions</h1>
           <p className="text-gray-400 text-sm">View your bridge transaction history</p>
@@ -112,7 +155,7 @@ export function TransactionHistory() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
+    <div className="space-y-6 max-w-6xl mx-auto">
       <div className="text-center">
         <h1 className="text-3xl font-sans font-bold text-white mb-2">Transactions</h1>
         <p className="text-gray-400 text-sm">View your bridge transaction history</p>
@@ -173,10 +216,22 @@ export function TransactionHistory() {
                 </a>
               </div>
             )}
+            {!lookupResult.released && (
+              <button
+                onClick={() => handleForceCheck(lookupHash.trim())}
+                disabled={forceLoading === lookupHash.trim()}
+                className="mt-2 w-full py-2 rounded-lg text-sm font-semibold bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 hover:bg-yellow-500/30 disabled:opacity-40 transition-colors"
+              >
+                {forceLoading === lookupHash.trim() ? 'Releasing...' : 'Force Release via Relayer'}
+              </button>
+            )}
           </div>
         )}
         {lookupDone && lookupError && (
           <p className="mt-2 text-sm text-red-400">{lookupError}</p>
+        )}
+        {forceResult && (
+          <p className="mt-2 text-sm text-accent">{forceResult}</p>
         )}
       </div>
 
@@ -194,6 +249,15 @@ export function TransactionHistory() {
               />
               Show only unreceived
             </label>
+            {txs.some(tx => !tx.released) && (
+              <button
+                onClick={handleForceAll}
+                disabled={forceLoading === 'all'}
+                className="text-xs px-3 py-1 rounded-lg bg-yellow-500/10 text-yellow-400 border border-yellow-500/30 hover:bg-yellow-500/20 transition-colors disabled:opacity-40"
+              >
+                {forceLoading === 'all' ? 'Processing...' : 'Force All Pending'}
+              </button>
+            )}
             <button
               onClick={refetch}
               disabled={loading}

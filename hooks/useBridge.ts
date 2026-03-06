@@ -6,7 +6,7 @@ import { parseUnits, maxUint256, decodeEventLog, pad } from 'viem';
 import { ROUTER_ABI, BRIDGE_ERC20_ABI, ERC20_ABI } from '@/lib/abi';
 import { CONTRACTS } from '@/config/contracts';
 import { Token, getDecimals } from '@/config/tokens';
-import { getRpc, getDestChainId, rpcCall, getRequiredConfirmations } from '@/config/chainUtils';
+import { getRpc, getDestChainId, rpcCall, getRequiredConfirmations, RELAYER_API } from '@/config/chainUtils';
 
 export type BridgeStatus = 'idle' | 'switching' | 'approving' | 'depositing' | 'confirming' | 'waiting_relayer' | 'released' | 'error';
 
@@ -159,14 +159,34 @@ export function useBridge() {
         return;
       }
       try {
-        const data = '0x047a7fe5' +
-          sourceChainId.toString(16).padStart(64, '0') +
-          depNum.toString(16).padStart(64, '0');
+        // Try relayer API first (fastest, has the tx hash)
+        let released = false;
+        try {
+          const apiRes = await fetch(`${RELAYER_API}/deposit/${sourceChainId}/${depNum}`);
+          if (apiRes.ok) {
+            const apiData = await apiRes.json();
+            if (apiData.processed) {
+              released = true;
+              if (apiData.releaseTxHash && apiData.releaseTxHash !== 'already-released' && apiData.releaseTxHash !== 'sent') {
+                setReleaseTxHash(apiData.releaseTxHash);
+              }
+            }
+          }
+        } catch { /* relayer API unavailable, fallback to RPC */ }
 
-        const result = await rpcCall(destRpc, 'eth_call', [{ to: destBridge, data }, 'latest']);
-        if (result && result !== '0x' + '0'.repeat(64)) {
+        // Fallback: check on-chain directly
+        if (!released) {
+          const data = '0x047a7fe5' +
+            sourceChainId.toString(16).padStart(64, '0') +
+            depNum.toString(16).padStart(64, '0');
+          const result = await rpcCall(destRpc, 'eth_call', [{ to: destBridge, data }, 'latest']);
+          released = !!(result && result !== '0x' + '0'.repeat(64));
+        }
+
+        if (released) {
           clearInterval(pollRef.current!);
-          if (address) {
+          // If we don't have releaseTxHash yet, try to find it from logs
+          if (!releaseTxHash && address) {
             await findReleaseTx(sourceChainId, depNum, address);
           }
           setStatus('released');
@@ -174,7 +194,7 @@ export function useBridge() {
         }
       } catch { /* ignore */ }
     }, 5000);
-  }, [address, findReleaseTx]);
+  }, [address, findReleaseTx, releaseTxHash]);
 
   // Recover depositNumber from tx receipt when not persisted
   const recoverDepositNumber = useCallback(async (hash: string, sourceChainId: number): Promise<bigint | null> => {

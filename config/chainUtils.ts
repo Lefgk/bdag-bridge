@@ -1,5 +1,8 @@
 // Centralized chain configuration — single source of truth for RPCs, names, explorers
 
+// Relayer API (runs on the bridge-relayer EC2 instance)
+export const RELAYER_API = process.env.NEXT_PUBLIC_RELAYER_API || 'https://relayer.bdagscan.com';
+
 export const BSC_CHAIN_ID = 56;
 export const BDAG_CHAIN_ID = 1404;
 
