@@ -72,12 +72,16 @@ export function DepositTracker({ status, txHash, releaseTxHash, sourceChainId, e
     <div className="mt-6 bg-card rounded-xl p-5 border border-gray-800">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-sm font-sans font-semibold text-gray-300">Bridge Status</h3>
-        {(isComplete || isError) && onReset && (
+        {onReset && (
           <button
             onClick={onReset}
-            className="text-xs px-3 py-1 rounded-lg bg-accent/10 text-accent border border-accent/30 hover:bg-accent/20 transition-colors"
+            className={`text-xs px-3 py-1 rounded-lg border transition-colors ${
+              isComplete || isError
+                ? 'bg-accent/10 text-accent border-accent/30 hover:bg-accent/20'
+                : 'bg-gray-800 text-gray-400 border-gray-600 hover:text-gray-300 hover:border-gray-500'
+            }`}
           >
-            Bridge Again
+            {isComplete || isError ? 'Bridge Again' : 'Cancel'}
           </button>
         )}
       </div>
