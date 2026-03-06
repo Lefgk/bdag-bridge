@@ -11,6 +11,12 @@ import { blockdag } from '@/config/chains';
 export type BridgeStatus = 'idle' | 'switching' | 'approving' | 'depositing' | 'confirming' | 'waiting_relayer' | 'released' | 'error';
 
 const STORAGE_KEY = 'bdag_bridge_state';
+const BDAG_GAS_PRICE = 20000000n; // BlockDAG requires legacy txs with >= 20M gas price
+
+// Returns gas overrides for BlockDAG (legacy tx with explicit gas price)
+function bdagGasOverrides(chainId: number) {
+  return chainId === 1404 ? { gasPrice: BDAG_GAS_PRICE } : {};
+}
 
 interface PersistedBridgeState {
   status: BridgeStatus;
@@ -278,6 +284,7 @@ export function useBridge() {
           functionName: 'depositNativeTokensToBridge',
           args: [amountParsed, to, BigInt(targetChainId)],
           value: amountParsed,
+          ...bdagGasOverrides(sourceChainId),
         });
         setTxHash(hash);
         setStatus('confirming');
@@ -338,6 +345,7 @@ export function useBridge() {
             abi: ERC20_ABI,
             functionName: 'approve',
             args: [contracts.router, maxUint256],
+            ...bdagGasOverrides(sourceChainId),
           });
           // Wait for approval to confirm
           if (publicClient) {
@@ -351,6 +359,7 @@ export function useBridge() {
           abi: ROUTER_ABI,
           functionName: 'depositERC20TokensToBridge',
           args: [tokenAddr, amountParsed, to, BigInt(targetChainId)],
+          ...bdagGasOverrides(sourceChainId),
         });
         setTxHash(hash);
         setStatus('confirming');
