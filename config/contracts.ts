@@ -6,13 +6,13 @@ export const CONTRACTS: Record<number, {
   // BSC (deployed)
   56: {
     router: '0x72da288d754607d15a389118052535a6d263dbdb',
-    bridgeERC20: '0x1700a1f0d6bccc7e7b811743a319c1544a2b908e',
+    bridgeERC20: '0xC3864afC169C6110cB8f0cCaC4fE1B935951A66F',
     liquidityManager: '0x086d7ec1806c74e339ef313f46cca5eabc0d0aaf',
   },
   // BlockDAG (deployed)
   1404: {
     router: '0x2cfbf23402af68f242452ab0c8a7ce00b9b791e9',
-    bridgeERC20: '0x20c4c926f7330880afee083212b2f1634c84d061',
+    bridgeERC20: '0x45dde3ba310f4abdf102f510f8f7a083c649efa9',
     liquidityManager: '0x761e492086fe858a0585c21d5300ffcea9b71945',
   },
   // ETH (not deployed yet)
