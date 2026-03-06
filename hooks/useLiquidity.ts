@@ -5,7 +5,7 @@ import { useAccount, useWriteContract, useReadContract, useSwitchChain } from 'w
 import { parseUnits, maxUint256 } from 'viem';
 import { ROUTER_ABI, ERC20_ABI } from '@/lib/abi';
 import { CONTRACTS } from '@/config/contracts';
-import { Token } from '@/config/tokens';
+import { Token, getDecimals } from '@/config/tokens';
 
 export function useLiquidity() {
   const { address, chainId } = useAccount();
@@ -31,7 +31,7 @@ export function useLiquidity() {
         await switchChainAsync({ chainId: sourceChainId });
       }
 
-      const amountParsed = parseUnits(amount, token.decimals);
+      const amountParsed = parseUnits(amount, getDecimals(token, sourceChainId));
 
       if (token.isNative) {
         await writeContractAsync({

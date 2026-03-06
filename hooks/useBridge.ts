@@ -5,7 +5,7 @@ import { useAccount, useWriteContract, usePublicClient, useSwitchChain } from 'w
 import { parseUnits, maxUint256, decodeEventLog } from 'viem';
 import { ROUTER_ABI, BRIDGE_ERC20_ABI, ERC20_ABI } from '@/lib/abi';
 import { CONTRACTS } from '@/config/contracts';
-import { Token } from '@/config/tokens';
+import { Token, getDecimals } from '@/config/tokens';
 import { blockdag } from '@/config/chains';
 
 export type BridgeStatus = 'idle' | 'switching' | 'approving' | 'depositing' | 'confirming' | 'waiting_relayer' | 'released' | 'error';
@@ -177,7 +177,7 @@ export function useBridge() {
         await switchChainAsync({ chainId: sourceChainId });
       }
 
-      const amountParsed = parseUnits(amount, token.decimals);
+      const amountParsed = parseUnits(amount, getDecimals(token, sourceChainId));
 
       if (token.isNative) {
         setStatus('depositing');

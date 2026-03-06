@@ -1,7 +1,7 @@
 export interface Token {
   symbol: string;
   name: string;
-  decimals: number;
+  decimals: Record<number, number>; // chainId => decimals
   isNative?: boolean;
   icon: string; // URL to token icon
   addresses: Record<number, string>; // chainId => address
@@ -11,7 +11,7 @@ export const BRIDGE_TOKENS: Token[] = [
   {
     symbol: 'USDT',
     name: 'Tether USD',
-    decimals: 18,
+    decimals: { 56: 18, 1404: 18 },
     icon: 'https://assets.coingecko.com/coins/images/325/small/Tether.png',
     addresses: {
       56: '0x55d398326f99059fF775485246999027B3197955',
@@ -21,7 +21,7 @@ export const BRIDGE_TOKENS: Token[] = [
   {
     symbol: 'USDC',
     name: 'USD Coin',
-    decimals: 18,
+    decimals: { 56: 18, 1404: 18 },
     icon: 'https://assets.coingecko.com/coins/images/6319/small/usdc.png',
     addresses: {
       56: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
@@ -29,19 +29,9 @@ export const BRIDGE_TOKENS: Token[] = [
     },
   },
   {
-    symbol: 'BNB',
-    name: 'BNB',
-    decimals: 18,
-    isNative: true,
-    icon: 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png',
-    addresses: {
-      56: '0x0000000000000000000000000000000000000000',
-    },
-  },
-  {
     symbol: 'WBNB',
     name: 'Wrapped BNB',
-    decimals: 18,
+    decimals: { 56: 18, 1404: 18 },
     icon: 'https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png',
     addresses: {
       56: '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c',
@@ -52,4 +42,8 @@ export const BRIDGE_TOKENS: Token[] = [
 
 export function getTokensForChain(chainId: number): Token[] {
   return BRIDGE_TOKENS.filter(t => t.addresses[chainId]);
+}
+
+export function getDecimals(token: Token, chainId: number): number {
+  return token.decimals[chainId] ?? 18;
 }

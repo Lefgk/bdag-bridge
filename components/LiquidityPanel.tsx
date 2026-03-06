@@ -6,7 +6,7 @@ import { formatUnits, parseUnits } from 'viem';
 import { ChainSelector } from './ChainSelector';
 import { TokenSelector } from './TokenSelector';
 import { useLiquidity } from '@/hooks/useLiquidity';
-import { getTokensForChain, Token } from '@/config/tokens';
+import { getTokensForChain, getDecimals, Token } from '@/config/tokens';
 import { CONTRACTS } from '@/config/contracts';
 import { ROUTER_ABI, ERC20_ABI } from '@/lib/abi';
 
@@ -81,7 +81,7 @@ export function LiquidityPanel() {
   };
 
   const lpBalFormatted = lpBalance ? formatUnits(lpBalance as bigint, 18) : '0';
-  const poolBalFormatted = poolBalance && token ? formatUnits(poolBalance as bigint, token.decimals) : '0';
+  const poolBalFormatted = poolBalance && token ? formatUnits(poolBalance as bigint, getDecimals(token, chainId)) : '0';
   const lpSupplyFormatted = lpTotalSupply ? formatUnits(lpTotalSupply as bigint, 18) : '0';
   const yourShare = lpTotalSupply && lpBalance && (lpTotalSupply as bigint) > 0n
     ? ((Number(lpBalance) / Number(lpTotalSupply)) * 100).toFixed(2)
@@ -122,7 +122,7 @@ export function LiquidityPanel() {
         {/* Token */}
         <div className="mt-5">
           <label className="block text-xs text-gray-500 uppercase tracking-wider mb-2">Token</label>
-          <TokenSelector tokens={tokens} selected={token} onSelect={setToken} />
+          <TokenSelector tokens={tokens} selected={token} onSelect={setToken} sourceChainId={chainId} />
         </div>
 
         {/* Amount */}
