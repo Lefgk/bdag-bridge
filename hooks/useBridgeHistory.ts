@@ -106,7 +106,7 @@ async function checkReleased(sourceChainId: number, depositNumber: bigint): Prom
   const bridge = CONTRACTS[destChainId]?.bridgeERC20;
   if (!bridge) return false;
 
-  const data = '0xa06e12e8' +
+  const data = '0x047a7fe5' +
     sourceChainId.toString(16).padStart(64, '0') +
     depositNumber.toString(16).padStart(64, '0');
 

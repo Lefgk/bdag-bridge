@@ -114,7 +114,7 @@ export function useBridge() {
           method: 'eth_call',
           params: [{
             to: bdagBridge,
-            data: '0x' + 'a06e12e8' + // releasedDeposits(uint256,uint256)
+            data: '0x' + '047a7fe5' + // releasedDeposits(uint256,uint256)
               sourceChainId.toString(16).padStart(64, '0') +
               depNum.toString(16).padStart(64, '0'),
           }, 'latest'],
