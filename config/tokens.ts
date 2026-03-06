@@ -15,7 +15,7 @@ export const BRIDGE_TOKENS: Token[] = [
     icon: 'https://assets.coingecko.com/coins/images/325/small/Tether.png',
     addresses: {
       56: '0x55d398326f99059fF775485246999027B3197955',
-      1404: '0xe4d9d1ea586bfe794860e601c5df056e181f2d05', // wUSDT
+      1404: '0x62ad37ff9df8e4f4c9f24dc0f0a71fda0b4d75b3', // wUSDT (18 decimals)
     },
   },
   {
@@ -25,7 +25,7 @@ export const BRIDGE_TOKENS: Token[] = [
     icon: 'https://assets.coingecko.com/coins/images/6319/small/usdc.png',
     addresses: {
       56: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
-      1404: '0xaea69e6c614bed0d4510f1fd9c8c5ca68b42719f', // wUSDC
+      1404: '0x28eb6f3ac1ea2daf488a955179ab037c5dd9e661', // wUSDC (18 decimals)
     },
   },
   {
