@@ -201,6 +201,33 @@ export function useBridge() {
     }, 5000);
   }, [address, findReleaseTx]);
 
+  // Recover depositNumber from tx receipt when not persisted
+  const recoverDepositNumber = useCallback(async (txHash: string, sourceChainId: number): Promise<bigint | null> => {
+    const rpc = sourceChainId === 1404 ? 'https://rpc.bdagscan.com' : 'https://bsc-rpc.publicnode.com';
+    const bridge = CONTRACTS[sourceChainId]?.bridgeERC20;
+    if (!bridge) return null;
+    try {
+      const res = await fetch(rpc, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_getTransactionReceipt', params: [txHash], id: 1 }),
+      });
+      const json = await res.json();
+      if (!json.result?.logs) return null;
+      for (const log of json.result.logs) {
+        if (log.address.toLowerCase() === bridge.toLowerCase()) {
+          try {
+            const decoded = decodeEventLog({ abi: BRIDGE_ERC20_ABI, data: log.data, topics: log.topics });
+            if (decoded.eventName === 'ERC20Deposited' || decoded.eventName === 'NativeDeposited') {
+              return BigInt((decoded.args as any).depositNumber);
+            }
+          } catch { /* skip */ }
+        }
+      }
+    } catch { /* ignore */ }
+    return null;
+  }, []);
+
   // Restore state from localStorage on mount
   useEffect(() => {
     if (restoredRef.current) return;
@@ -214,13 +241,25 @@ export function useBridge() {
       setStatus(saved.status);
       if (saved.txHash) setTxHash(saved.txHash);
       if (saved.sourceChainId) setActiveSourceChainId(saved.sourceChainId);
-      if (saved.depositNumber) {
-        const depNum = BigInt(saved.depositNumber);
+
+      const startPolling = (depNum: bigint) => {
         setDepositNumber(depNum);
-        // Resume polling if we have deposit info
         if (saved.sourceChainId) {
+          // Update persisted state with recovered depositNumber
+          saveState({ ...saved, depositNumber: depNum.toString(), timestamp: Date.now() });
           pollForRelease(saved.sourceChainId, depNum);
         }
+      };
+
+      if (saved.depositNumber) {
+        startPolling(BigInt(saved.depositNumber));
+      } else if (saved.txHash && saved.sourceChainId) {
+        // depositNumber wasn't persisted — recover from tx receipt
+        recoverDepositNumber(saved.txHash, saved.sourceChainId).then(depNum => {
+          if (depNum !== null) {
+            startPolling(depNum);
+          }
+        });
       }
     } else if (saved.status === 'released') {
       // Show the completed state so user can see it
@@ -228,7 +267,7 @@ export function useBridge() {
       if (saved.txHash) setTxHash(saved.txHash);
       if (saved.depositNumber) setDepositNumber(BigInt(saved.depositNumber));
     }
-  }, [pollForRelease]);
+  }, [pollForRelease, recoverDepositNumber]);
 
   // Persist state whenever status/txHash/depositNumber changes
   const persistState = useCallback((
