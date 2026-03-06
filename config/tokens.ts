@@ -13,6 +13,7 @@ export const BRIDGE_TOKENS: Token[] = [
     decimals: 18,
     addresses: {
       56: '0x55d398326f99059fF775485246999027B3197955',
+      1404: '0xe4d9d1ea586bfe794860e601c5df056e181f2d05', // wUSDT
     },
   },
   {
@@ -21,6 +22,7 @@ export const BRIDGE_TOKENS: Token[] = [
     decimals: 18,
     addresses: {
       56: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
+      1404: '0xaea69e6c614bed0d4510f1fd9c8c5ca68b42719f', // wUSDC
     },
   },
   {
@@ -38,6 +40,7 @@ export const BRIDGE_TOKENS: Token[] = [
     decimals: 18,
     addresses: {
       56: '0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c',
+      1404: '0x8707cacb12a6826e00c81a60fbb37cc7f24235bb', // wBNB
     },
   },
 ];

@@ -74,6 +74,7 @@ export function useBridge() {
   ) => {
     if (!address) return;
     const to = (receiver || address) as `0x${string}`;
+    const targetChainId = sourceChainId === 1404 ? 56 : 1404;
     const contracts = CONTRACTS[sourceChainId];
     if (!contracts) {
       setError('Chain not supported');
@@ -96,7 +97,7 @@ export function useBridge() {
           address: contracts.router,
           abi: ROUTER_ABI,
           functionName: 'depositNativeTokensToBridge',
-          args: [amountParsed, to, BigInt(1404)],
+          args: [amountParsed, to, BigInt(targetChainId)],
           value: amountParsed,
         });
         setTxHash(hash);
@@ -164,7 +165,7 @@ export function useBridge() {
           address: contracts.router,
           abi: ROUTER_ABI,
           functionName: 'depositERC20TokensToBridge',
-          args: [tokenAddr, amountParsed, to, BigInt(1404)],
+          args: [tokenAddr, amountParsed, to, BigInt(targetChainId)],
         });
         setTxHash(hash);
         setStatus('confirming');

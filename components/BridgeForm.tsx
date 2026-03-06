@@ -3,32 +3,34 @@
 import { useState } from 'react';
 import { useAccount, useBalance } from 'wagmi';
 import { formatUnits } from 'viem';
-import { ChainSelector } from './ChainSelector';
 import { TokenSelector } from './TokenSelector';
 import { DepositTracker } from './DepositTracker';
 import { useBridge } from '@/hooks/useBridge';
 import { getTokensForChain, Token } from '@/config/tokens';
 
+type Direction = 'bsc_to_bdag' | 'bdag_to_bsc';
+
 export function BridgeForm() {
   const { address, isConnected } = useAccount();
-  const [chainId, setChainId] = useState(56);
+  const [direction, setDirection] = useState<Direction>('bsc_to_bdag');
   const [token, setToken] = useState<Token | null>(null);
   const [amount, setAmount] = useState('');
 
-  const tokens = getTokensForChain(chainId);
+  const sourceChainId = direction === 'bsc_to_bdag' ? 56 : 1404;
+  const targetChainId = direction === 'bsc_to_bdag' ? 1404 : 56;
+  const tokens = getTokensForChain(sourceChainId);
   const { bridge, status, txHash, error, reset } = useBridge();
 
-  // Get balance for selected token
-  const tokenAddr = token && !token.isNative ? token.addresses[chainId] : undefined;
+  const tokenAddr = token && !token.isNative ? token.addresses[sourceChainId] : undefined;
   const { data: balance } = useBalance({
     address,
     token: tokenAddr as `0x${string}` | undefined,
-    chainId,
+    chainId: sourceChainId,
     query: { enabled: isConnected && !!token },
   });
 
-  const handleChainChange = (id: number) => {
-    setChainId(id);
+  const handleDirectionSwap = () => {
+    setDirection(d => d === 'bsc_to_bdag' ? 'bdag_to_bsc' : 'bsc_to_bdag');
     setToken(null);
     setAmount('');
     reset();
@@ -39,15 +41,18 @@ export function BridgeForm() {
     reset();
   };
 
-  const fee = amount ? (parseFloat(amount) * 0.006).toFixed(token?.decimals === 6 ? 4 : 6) : '0';
-  const receive = amount ? (parseFloat(amount) * 0.994).toFixed(token?.decimals === 6 ? 4 : 6) : '0';
-
+  const fee = amount ? (parseFloat(amount) * 0.006).toFixed(6) : '0';
+  const receive = amount ? (parseFloat(amount) * 0.994).toFixed(6) : '0';
   const isActive = status !== 'idle' && status !== 'released' && status !== 'error';
 
   const handleBridge = () => {
     if (!token || !amount) return;
-    bridge(chainId, token, amount);
+    bridge(sourceChainId, token, amount);
   };
+
+  const receiveSymbol = direction === 'bsc_to_bdag'
+    ? `w${token?.symbol || ''}`
+    : token?.symbol || '';
 
   const buttonText = () => {
     if (!isConnected) return 'Connect Wallet';
@@ -57,36 +62,49 @@ export function BridgeForm() {
       case 'switching': return 'Switching Chain...';
       case 'approving': return 'Approving...';
       case 'depositing': return 'Confirm in Wallet...';
-      case 'confirming': return 'Confirming on BSC...';
+      case 'confirming': return 'Confirming...';
       case 'waiting_relayer': return 'Waiting for Release...';
-      case 'released': return 'Bridge to BlockDAG';
-      case 'error': return 'Bridge to BlockDAG';
-      default: return 'Bridge to BlockDAG';
+      default: return 'Bridge';
     }
   };
 
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h1 className="text-3xl font-sans font-bold text-white mb-2">Bridge to BlockDAG</h1>
-        <p className="text-gray-400 text-sm">Transfer tokens from BNB Chain to BlockDAG Network</p>
+        <h1 className="text-3xl font-sans font-bold text-white mb-2">BDAG Bridge</h1>
+        <p className="text-gray-400 text-sm">Transfer tokens between BNB Chain and BlockDAG</p>
       </div>
 
       <div className="bg-card rounded-2xl p-6 border border-gray-800">
-        {/* Source Chain */}
-        <label className="block text-xs text-gray-500 uppercase tracking-wider mb-2">From Network</label>
-        <ChainSelector selectedChainId={chainId} onSelect={handleChainChange} />
+        {/* Direction selector */}
+        <div className="flex items-center gap-3 justify-center mb-6">
+          <div className={`px-4 py-2 rounded-lg text-sm font-semibold border ${
+            direction === 'bsc_to_bdag'
+              ? 'bg-[#F3BA2F]/10 border-[#F3BA2F]/40 text-[#F3BA2F]'
+              : 'bg-accent/10 border-accent/40 text-accent'
+          }`}>
+            {direction === 'bsc_to_bdag' ? 'BNB Chain' : 'BlockDAG'}
+          </div>
 
-        {/* Destination (fixed) */}
-        <div className="mt-4 flex items-center gap-2 text-sm text-gray-400">
-          <span className="text-xs uppercase tracking-wider">To:</span>
-          <span className="px-3 py-1 rounded-lg bg-accent/10 text-accent border border-accent/30 text-sm font-semibold">
-            BlockDAG (1404)
-          </span>
+          <button
+            onClick={handleDirectionSwap}
+            disabled={isActive}
+            className="w-10 h-10 rounded-full border border-gray-600 flex items-center justify-center text-gray-400 hover:text-accent hover:border-accent transition-colors disabled:opacity-40"
+          >
+            ⇄
+          </button>
+
+          <div className={`px-4 py-2 rounded-lg text-sm font-semibold border ${
+            direction === 'bsc_to_bdag'
+              ? 'bg-accent/10 border-accent/40 text-accent'
+              : 'bg-[#F3BA2F]/10 border-[#F3BA2F]/40 text-[#F3BA2F]'
+          }`}>
+            {direction === 'bsc_to_bdag' ? 'BlockDAG' : 'BNB Chain'}
+          </div>
         </div>
 
         {/* Token */}
-        <div className="mt-5">
+        <div>
           <label className="block text-xs text-gray-500 uppercase tracking-wider mb-2">Token</label>
           <TokenSelector tokens={tokens} selected={token} onSelect={setToken} />
         </div>
@@ -123,7 +141,7 @@ export function BridgeForm() {
             </div>
             <div className="flex justify-between text-white font-semibold">
               <span>You Receive</span>
-              <span>{receive} w{token?.symbol}</span>
+              <span>{receive} {receiveSymbol}</span>
             </div>
           </div>
         )}

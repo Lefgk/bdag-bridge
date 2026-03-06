@@ -95,12 +95,12 @@ export function DepositTracker({ status, txHash, error, onReset }: Props) {
 
       {txHash && (
         <a
-          href={`https://bscscan.com/tx/${txHash}`}
+          href={txHash.startsWith('0x') ? `https://bscscan.com/tx/${txHash}` : '#'}
           target="_blank"
           rel="noopener noreferrer"
           className="mt-3 block text-xs text-gray-500 hover:text-accent break-all transition-colors"
         >
-          BSC Tx: {txHash}
+          Tx: {txHash}
         </a>
       )}
       {error && (
