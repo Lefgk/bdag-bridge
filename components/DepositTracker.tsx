@@ -13,6 +13,12 @@ interface Props {
   requiredConfirmations?: number;
 }
 
+function chainName(chainId: number): string {
+  if (chainId === 56) return 'BNB Chain';
+  if (chainId === 1404) return 'BlockDAG';
+  return `Chain ${chainId}`;
+}
+
 function explorerTxUrl(hash: string, chainId: number): string {
   if (chainId === 56) return `https://bscscan.com/tx/${hash}`;
   if (chainId === 1404) return `https://bdagscan.com/tx/${hash}`;
@@ -25,22 +31,33 @@ function explorerLabel(chainId: number): string {
   return 'Explorer';
 }
 
-const STEPS = [
-  { keys: ['approving'], label: 'Approve Token' },
-  { keys: ['depositing'], label: 'Deposit to Bridge' },
-  { keys: ['confirming', 'waiting_relayer'], label: 'Waiting for Confirmations' },
-  { keys: ['released'], label: 'Released on BlockDAG' },
-] as const;
-
 function getStepIndex(status: BridgeStatus): number {
-  for (let i = 0; i < STEPS.length; i++) {
-    if ((STEPS[i].keys as readonly string[]).includes(status)) return i;
+  const stepKeys = [
+    ['approving'],
+    ['depositing'],
+    ['confirming', 'waiting_relayer'],
+    ['released'],
+  ];
+  for (let i = 0; i < stepKeys.length; i++) {
+    if (stepKeys[i].includes(status)) return i;
   }
   return -1;
 }
 
 export function DepositTracker({ status, txHash, releaseTxHash, sourceChainId, error, onReset, confirmations, requiredConfirmations }: Props) {
   if (status === 'idle' || status === 'switching') return null;
+
+  const srcChain = sourceChainId || 56;
+  const destChain = srcChain === 1404 ? 56 : 1404;
+  const srcName = chainName(srcChain);
+  const destName = chainName(destChain);
+
+  const steps = [
+    'Approve Token',
+    'Deposit to Bridge',
+    'Waiting for Confirmations',
+    `Released on ${destName}`,
+  ];
 
   const currentIdx = getStepIndex(status);
   const isComplete = status === 'released';
@@ -68,20 +85,20 @@ export function DepositTracker({ status, txHash, releaseTxHash, sourceChainId, e
       {/* Success banner */}
       {isComplete && (
         <div className="mb-4 p-3 rounded-lg bg-green-500/10 border border-green-500/30">
-          <p className="text-green-400 text-sm font-semibold">Bridge complete! Tokens received on BlockDAG.</p>
+          <p className="text-green-400 text-sm font-semibold">Bridge complete! Tokens received on {destName}.</p>
         </div>
       )}
 
       {/* Waiting for relayer message */}
       {status === 'waiting_relayer' && (
         <div className="mb-4 p-3 rounded-lg bg-accent/10 border border-accent/30">
-          <p className="text-accent text-sm">Deposit confirmed on BSC. Waiting for relayer to release on BlockDAG...</p>
+          <p className="text-accent text-sm">Deposit confirmed on {srcName}. Waiting for relayer to release on {destName}...</p>
           <p className="text-gray-500 text-xs mt-1">This usually takes 30-60 seconds.</p>
         </div>
       )}
 
       <div className="space-y-3">
-        {STEPS.map((step, i) => {
+        {steps.map((stepLabel, i) => {
           let state: 'done' | 'active' | 'pending' = 'pending';
           if (isError) {
             state = i <= Math.max(currentIdx, 0) ? 'active' : 'pending';
@@ -93,8 +110,7 @@ export function DepositTracker({ status, txHash, releaseTxHash, sourceChainId, e
             state = 'active';
           }
 
-          // Build step label with confirmation counter
-          let label = step.label;
+          let label = stepLabel;
           if (i === 2 && showConfirmations) {
             label = `Waiting for Confirmations (${Math.min(confCount, confRequired)}/${confRequired})`;
           }
@@ -136,21 +152,21 @@ export function DepositTracker({ status, txHash, releaseTxHash, sourceChainId, e
       {txHash && (
         <div className="mt-3 space-y-1">
           <a
-            href={explorerTxUrl(txHash, sourceChainId || 56)}
+            href={explorerTxUrl(txHash, srcChain)}
             target="_blank"
             rel="noopener noreferrer"
             className="block text-xs text-gray-500 hover:text-accent break-all transition-colors"
           >
-            Deposit Tx ({explorerLabel(sourceChainId || 56)}): {txHash}
+            Deposit Tx ({explorerLabel(srcChain)}): {txHash}
           </a>
           {releaseTxHash && (
             <a
-              href={explorerTxUrl(releaseTxHash, sourceChainId === 1404 ? 56 : 1404)}
+              href={explorerTxUrl(releaseTxHash, destChain)}
               target="_blank"
               rel="noopener noreferrer"
               className="block text-xs text-green-500 hover:text-green-400 break-all transition-colors"
             >
-              Release Tx ({explorerLabel(sourceChainId === 1404 ? 56 : 1404)}): {releaseTxHash}
+              Release Tx ({explorerLabel(destChain)}): {releaseTxHash}
             </a>
           )}
         </div>
