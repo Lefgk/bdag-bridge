@@ -6,7 +6,7 @@ export const CONTRACTS: Record<number, {
   // BSC (deployed)
   56: {
     router: '0x72da288d754607d15a389118052535a6d263dbdb',
-    bridgeERC20: '0x761e492086fe858a0585c21d5300ffcea9b71945',
+    bridgeERC20: '0x8707cacb12a6826e00c81a60fbb37cc7f24235bb',
     liquidityManager: '0x086d7ec1806c74e339ef313f46cca5eabc0d0aaf',
   },
   // BlockDAG (deployed)

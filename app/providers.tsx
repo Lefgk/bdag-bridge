@@ -2,7 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { WagmiProvider, createConfig, http } from 'wagmi';
-import { mainnet, bsc, base, arbitrum } from 'wagmi/chains';
+import { bsc } from 'wagmi/chains';
 import { RainbowKitProvider, getDefaultConfig, darkTheme } from '@rainbow-me/rainbowkit';
 import '@rainbow-me/rainbowkit/styles.css';
 import { blockdag } from '@/config/chains';
@@ -10,12 +10,9 @@ import { blockdag } from '@/config/chains';
 const config = getDefaultConfig({
   appName: 'BlockDAG Bridge',
   projectId: process.env.NEXT_PUBLIC_WC_PROJECT_ID || 'demo',
-  chains: [mainnet, bsc, base, arbitrum, blockdag],
+  chains: [bsc, blockdag],
   transports: {
-    [mainnet.id]: http(),
     [bsc.id]: http(),
-    [base.id]: http(),
-    [arbitrum.id]: http(),
     [blockdag.id]: http('https://rpc.bdagscan.com'),
   },
 });
