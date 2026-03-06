@@ -5,6 +5,7 @@ import { useAccount, useBalance } from 'wagmi';
 import { formatUnits } from 'viem';
 import { TokenSelector } from './TokenSelector';
 import { DepositTracker } from './DepositTracker';
+import { ChainStatus } from './ChainStatus';
 import { useBridge } from '@/hooks/useBridge';
 import { getTokensForChain, Token } from '@/config/tokens';
 
@@ -92,8 +93,7 @@ export function BridgeForm() {
 
           <button
             onClick={handleDirectionSwap}
-            disabled={isActive}
-            className="w-10 h-10 rounded-full border border-gray-600 flex items-center justify-center text-gray-400 hover:text-accent hover:border-accent transition-colors disabled:opacity-40"
+            className="w-10 h-10 rounded-full border border-gray-600 flex items-center justify-center text-gray-400 hover:text-accent hover:border-accent transition-colors"
           >
             ⇄
           </button>
@@ -162,6 +162,9 @@ export function BridgeForm() {
 
       {/* Status Tracker */}
       <DepositTracker status={status} txHash={txHash} releaseTxHash={releaseTxHash} sourceChainId={bridgeSourceChainId} error={error} onReset={handleReset} confirmations={confirmations} requiredConfirmations={requiredConfirmations} />
+
+      {/* Chain Block Heights */}
+      <ChainStatus />
     </div>
   );
 }
