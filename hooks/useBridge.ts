@@ -59,8 +59,40 @@ export function useBridge() {
   const [releaseTxHash, setReleaseTxHash] = useState<string>();
   const [depositNumber, setDepositNumber] = useState<bigint>();
   const [error, setError] = useState<string>();
+  const [confirmations, setConfirmations] = useState<number>(0);
+  const [depositBlock, setDepositBlock] = useState<number>();
   const pollRef = useRef<ReturnType<typeof setInterval>>();
+  const confirmPollRef = useRef<ReturnType<typeof setInterval>>();
   const restoredRef = useRef(false);
+
+  const requiredConfirmations = 15; // BSC ~15 blocks for finality
+
+  // Poll for confirmation count
+  const startConfirmationPolling = useCallback((sourceChainId: number, depBlock: number) => {
+    if (confirmPollRef.current) clearInterval(confirmPollRef.current);
+    setConfirmations(0);
+
+    const rpc = sourceChainId === 1404 ? 'https://rpc.bdagscan.com' : 'https://bsc-rpc.publicnode.com';
+
+    confirmPollRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(rpc, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_blockNumber', params: [], id: 1 }),
+        });
+        const json = await res.json();
+        const currentBlock = parseInt(json.result, 16);
+        const confs = Math.max(0, currentBlock - depBlock);
+        setConfirmations(confs);
+        if (confs >= requiredConfirmations) {
+          clearInterval(confirmPollRef.current!);
+        }
+      } catch {
+        // ignore
+      }
+    }, 3000);
+  }, [requiredConfirmations]);
 
   // Poll BlockDAG to check if deposit was released
   const pollForRelease = useCallback((sourceChainId: number, depNum: bigint) => {
@@ -196,6 +228,9 @@ export function useBridge() {
         if (publicClient) {
           const receipt = await publicClient.waitForTransactionReceipt({ hash });
           if (receipt.status === 'success') {
+            const blockNum = Number(receipt.blockNumber);
+            setDepositBlock(blockNum);
+            startConfirmationPolling(sourceChainId, blockNum);
             // Try to get deposit number from logs
             try {
               for (const log of receipt.logs) {
@@ -266,6 +301,9 @@ export function useBridge() {
         if (publicClient) {
           const receipt = await publicClient.waitForTransactionReceipt({ hash });
           if (receipt.status === 'success') {
+            const blockNum = Number(receipt.blockNumber);
+            setDepositBlock(blockNum);
+            startConfirmationPolling(sourceChainId, blockNum);
             try {
               for (const log of receipt.logs) {
                 if (log.address.toLowerCase() === contracts.bridgeERC20.toLowerCase()) {
@@ -299,17 +337,20 @@ export function useBridge() {
       }
       setStatus('error');
     }
-  }, [address, chainId, switchChainAsync, writeContractAsync, publicClient, pollForRelease, persistState]);
+  }, [address, chainId, switchChainAsync, writeContractAsync, publicClient, pollForRelease, persistState, startConfirmationPolling]);
 
   const reset = useCallback(() => {
     if (pollRef.current) clearInterval(pollRef.current);
+    if (confirmPollRef.current) clearInterval(confirmPollRef.current);
     clearState();
     setStatus('idle');
     setTxHash(undefined);
     setReleaseTxHash(undefined);
     setDepositNumber(undefined);
     setError(undefined);
+    setConfirmations(0);
+    setDepositBlock(undefined);
   }, []);
 
-  return { bridge, status, txHash, releaseTxHash, depositNumber, error, reset };
+  return { bridge, status, txHash, releaseTxHash, depositNumber, error, reset, confirmations, requiredConfirmations };
 }

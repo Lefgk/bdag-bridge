@@ -25,6 +25,16 @@ export function Navbar() {
             >
               Bridge
             </Link>
+            <Link
+              href="/transactions"
+              className={`px-4 py-2 rounded-lg text-sm transition-colors ${
+                pathname === '/transactions'
+                  ? 'bg-card text-accent'
+                  : 'text-gray-400 hover:text-gray-200'
+              }`}
+            >
+              Transactions
+            </Link>
             {pathname === '/admin' && (
               <Link
                 href="/admin"

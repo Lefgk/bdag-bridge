@@ -19,7 +19,7 @@ export function BridgeForm() {
   const sourceChainId = direction === 'bsc_to_bdag' ? 56 : 1404;
   const targetChainId = direction === 'bsc_to_bdag' ? 1404 : 56;
   const tokens = getTokensForChain(sourceChainId);
-  const { bridge, status, txHash, error, reset } = useBridge();
+  const { bridge, status, txHash, error, reset, confirmations, requiredConfirmations } = useBridge();
 
   const tokenAddr = token && !token.isNative ? token.addresses[sourceChainId] : undefined;
   const { data: balance } = useBalance({
@@ -41,8 +41,12 @@ export function BridgeForm() {
     reset();
   };
 
-  const fee = amount ? (parseFloat(amount) * 0.006).toFixed(6) : '0';
-  const receive = amount ? (parseFloat(amount) * 0.994).toFixed(6) : '0';
+  const feeNum = amount ? parseFloat(amount) * 0.006 : 0;
+  const receiveNum = amount ? parseFloat(amount) * 0.994 : 0;
+  // Use more decimals for small amounts so fee/receive don't round to zero
+  const precision = feeNum > 0 && feeNum < 0.000001 ? 10 : feeNum < 0.01 ? 8 : 6;
+  const fee = feeNum.toFixed(precision);
+  const receive = receiveNum.toFixed(precision);
   const isActive = status !== 'idle' && status !== 'released' && status !== 'error';
 
   const handleBridge = () => {
@@ -157,7 +161,7 @@ export function BridgeForm() {
       </div>
 
       {/* Status Tracker */}
-      <DepositTracker status={status} txHash={txHash} error={error} onReset={handleReset} />
+      <DepositTracker status={status} txHash={txHash} error={error} onReset={handleReset} confirmations={confirmations} requiredConfirmations={requiredConfirmations} />
     </div>
   );
 }

@@ -7,6 +7,8 @@ interface Props {
   txHash?: string;
   error?: string;
   onReset?: () => void;
+  confirmations?: number;
+  requiredConfirmations?: number;
 }
 
 const STEPS = [
@@ -23,12 +25,17 @@ function getStepIndex(status: BridgeStatus): number {
   return -1;
 }
 
-export function DepositTracker({ status, txHash, error, onReset }: Props) {
+export function DepositTracker({ status, txHash, error, onReset, confirmations, requiredConfirmations }: Props) {
   if (status === 'idle' || status === 'switching') return null;
 
   const currentIdx = getStepIndex(status);
   const isComplete = status === 'released';
   const isError = status === 'error';
+  const showConfirmations = (status === 'confirming' || status === 'waiting_relayer') &&
+    confirmations !== undefined && requiredConfirmations !== undefined;
+  const confCount = confirmations ?? 0;
+  const confRequired = requiredConfirmations ?? 15;
+  const confProgress = Math.min(confCount / confRequired, 1);
 
   return (
     <div className="mt-6 bg-card rounded-xl p-5 border border-gray-800">
@@ -72,22 +79,41 @@ export function DepositTracker({ status, txHash, error, onReset }: Props) {
             state = 'active';
           }
 
+          // Build step label with confirmation counter
+          let label = step.label;
+          if (i === 2 && showConfirmations) {
+            label = `Waiting for Confirmations (${Math.min(confCount, confRequired)}/${confRequired})`;
+          }
+
           return (
-            <div key={i} className="flex items-center gap-3">
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs border shrink-0 ${
-                state === 'done' ? 'bg-green-500/20 border-green-500 text-green-400' :
-                state === 'active' ? 'bg-accent/20 border-accent text-accent animate-pulse' :
-                'border-gray-600 text-gray-500'
-              }`}>
-                {state === 'done' ? '\u2713' : i + 1}
+            <div key={i}>
+              <div className="flex items-center gap-3">
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs border shrink-0 ${
+                  state === 'done' ? 'bg-green-500/20 border-green-500 text-green-400' :
+                  state === 'active' ? 'bg-accent/20 border-accent text-accent animate-pulse' :
+                  'border-gray-600 text-gray-500'
+                }`}>
+                  {state === 'done' ? '\u2713' : i + 1}
+                </div>
+                <span className={`text-sm ${
+                  state === 'done' ? 'text-green-400' :
+                  state === 'active' ? 'text-accent' :
+                  'text-gray-500'
+                }`}>
+                  {label}
+                </span>
               </div>
-              <span className={`text-sm ${
-                state === 'done' ? 'text-green-400' :
-                state === 'active' ? 'text-accent' :
-                'text-gray-500'
-              }`}>
-                {step.label}
-              </span>
+              {/* Confirmation progress bar */}
+              {i === 2 && showConfirmations && state === 'active' && (
+                <div className="ml-9 mt-1.5 mb-1">
+                  <div className="h-1.5 rounded-full bg-gray-700 overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-accent transition-all duration-500"
+                      style={{ width: `${confProgress * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
