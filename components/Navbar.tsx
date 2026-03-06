@@ -35,6 +35,14 @@ export function Navbar() {
             >
               Liquidity
             </Link>
+            {pathname === '/admin' && (
+              <Link
+                href="/admin"
+                className="px-4 py-2 rounded-lg text-sm bg-card text-red-400"
+              >
+                Admin
+              </Link>
+            )}
           </div>
         </div>
         <ConnectButton showBalance={false} chainStatus="icon" />
