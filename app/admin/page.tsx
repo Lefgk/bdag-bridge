@@ -5,7 +5,7 @@ import { useAccount, useWriteContract, useReadContract } from 'wagmi';
 import { CONTRACTS } from '@/config/contracts';
 import { SOURCE_CHAINS } from '@/config/chains';
 
-const ADMIN_ADDR = '0x4Ae60b47174e94b8c187172886E6a4D322817760';
+const ADMIN_ADDR = '0xD2101105F4C8094a94FF878546bBEDAd8074C5e3';
 
 // Minimal ABIs for admin functions
 const BRIDGE_ERC20_ADMIN_ABI = [
