@@ -5,10 +5,24 @@ import type { BridgeStatus } from '@/hooks/useBridge';
 interface Props {
   status: BridgeStatus;
   txHash?: string;
+  releaseTxHash?: string;
+  sourceChainId?: number;
   error?: string;
   onReset?: () => void;
   confirmations?: number;
   requiredConfirmations?: number;
+}
+
+function explorerTxUrl(hash: string, chainId: number): string {
+  if (chainId === 56) return `https://bscscan.com/tx/${hash}`;
+  if (chainId === 1404) return `https://bdagscan.com/tx/${hash}`;
+  return '#';
+}
+
+function explorerLabel(chainId: number): string {
+  if (chainId === 56) return 'BSCScan';
+  if (chainId === 1404) return 'BDAGScan';
+  return 'Explorer';
 }
 
 const STEPS = [
@@ -25,7 +39,7 @@ function getStepIndex(status: BridgeStatus): number {
   return -1;
 }
 
-export function DepositTracker({ status, txHash, error, onReset, confirmations, requiredConfirmations }: Props) {
+export function DepositTracker({ status, txHash, releaseTxHash, sourceChainId, error, onReset, confirmations, requiredConfirmations }: Props) {
   if (status === 'idle' || status === 'switching') return null;
 
   const currentIdx = getStepIndex(status);
@@ -120,14 +134,26 @@ export function DepositTracker({ status, txHash, error, onReset, confirmations, 
       </div>
 
       {txHash && (
-        <a
-          href={txHash.startsWith('0x') ? `https://bscscan.com/tx/${txHash}` : '#'}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-3 block text-xs text-gray-500 hover:text-accent break-all transition-colors"
-        >
-          Tx: {txHash}
-        </a>
+        <div className="mt-3 space-y-1">
+          <a
+            href={explorerTxUrl(txHash, sourceChainId || 56)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block text-xs text-gray-500 hover:text-accent break-all transition-colors"
+          >
+            Deposit Tx ({explorerLabel(sourceChainId || 56)}): {txHash}
+          </a>
+          {releaseTxHash && (
+            <a
+              href={explorerTxUrl(releaseTxHash, sourceChainId === 1404 ? 56 : 1404)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block text-xs text-green-500 hover:text-green-400 break-all transition-colors"
+            >
+              Release Tx ({explorerLabel(sourceChainId === 1404 ? 56 : 1404)}): {releaseTxHash}
+            </a>
+          )}
+        </div>
       )}
       {error && (
         <div className="mt-3 p-2 rounded bg-red-500/10 border border-red-500/20">

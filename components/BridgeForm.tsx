@@ -19,7 +19,7 @@ export function BridgeForm() {
   const sourceChainId = direction === 'bsc_to_bdag' ? 56 : 1404;
   const targetChainId = direction === 'bsc_to_bdag' ? 1404 : 56;
   const tokens = getTokensForChain(sourceChainId);
-  const { bridge, status, txHash, error, reset, confirmations, requiredConfirmations } = useBridge();
+  const { bridge, status, txHash, releaseTxHash, error, reset, confirmations, requiredConfirmations, sourceChainId: bridgeSourceChainId } = useBridge();
 
   const tokenAddr = token && !token.isNative ? token.addresses[sourceChainId] : undefined;
   const { data: balance } = useBalance({
@@ -161,7 +161,7 @@ export function BridgeForm() {
       </div>
 
       {/* Status Tracker */}
-      <DepositTracker status={status} txHash={txHash} error={error} onReset={handleReset} confirmations={confirmations} requiredConfirmations={requiredConfirmations} />
+      <DepositTracker status={status} txHash={txHash} releaseTxHash={releaseTxHash} sourceChainId={bridgeSourceChainId} error={error} onReset={handleReset} confirmations={confirmations} requiredConfirmations={requiredConfirmations} />
     </div>
   );
 }

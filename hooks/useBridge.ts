@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useAccount, useWriteContract, usePublicClient, useSwitchChain } from 'wagmi';
-import { parseUnits, maxUint256, decodeEventLog } from 'viem';
+import { parseUnits, maxUint256, decodeEventLog, pad } from 'viem';
 import { ROUTER_ABI, BRIDGE_ERC20_ABI, ERC20_ABI } from '@/lib/abi';
 import { CONTRACTS } from '@/config/contracts';
 import { Token, getDecimals } from '@/config/tokens';
@@ -61,6 +61,7 @@ export function useBridge() {
   const [error, setError] = useState<string>();
   const [confirmations, setConfirmations] = useState<number>(0);
   const [depositBlock, setDepositBlock] = useState<number>();
+  const [activeSourceChainId, setActiveSourceChainId] = useState<number>();
   const pollRef = useRef<ReturnType<typeof setInterval>>();
   const confirmPollRef = useRef<ReturnType<typeof setInterval>>();
   const restoredRef = useRef(false);
@@ -94,12 +95,64 @@ export function useBridge() {
     }, 3000);
   }, [requiredConfirmations]);
 
-  // Poll BlockDAG to check if deposit was released
+  // Find release tx hash on destination chain
+  const findReleaseTx = useCallback(async (sourceChainId: number, depNum: bigint, receiverAddr: string) => {
+    const destChainId = sourceChainId === 1404 ? 56 : 1404;
+    const destRpc = destChainId === 1404 ? 'https://rpc.bdagscan.com' : 'https://bsc-rpc.publicnode.com';
+    const bridge = CONTRACTS[destChainId]?.bridgeERC20;
+    if (!bridge) return;
+
+    try {
+      const receiverTopic = pad(receiverAddr as `0x${string}`, { size: 32 });
+      // Get current block
+      const blockRes = await fetch(destRpc, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', method: 'eth_blockNumber', params: [], id: 1 }),
+      });
+      const blockJson = await blockRes.json();
+      const latestBlock = parseInt(blockJson.result, 16);
+      const fromBlock = Math.max(0, latestBlock - 10000);
+
+      const logsRes = await fetch(destRpc, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          method: 'eth_getLogs',
+          params: [{
+            address: bridge,
+            topics: [null, null, null, receiverTopic],
+            fromBlock: '0x' + fromBlock.toString(16),
+            toBlock: '0x' + latestBlock.toString(16),
+          }],
+          id: 1,
+        }),
+      });
+      const logsJson = await logsRes.json();
+      for (const log of logsJson.result || []) {
+        try {
+          const decoded = decodeEventLog({ abi: BRIDGE_ERC20_ABI, data: log.data, topics: log.topics });
+          if (decoded.eventName === 'ERC20Released') {
+            const args = decoded.args as any;
+            if (BigInt(args.depositNumber) === depNum && BigInt(args.depositChainId) === BigInt(sourceChainId)) {
+              setReleaseTxHash(log.transactionHash);
+              return;
+            }
+          }
+        } catch { /* skip */ }
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  // Poll destination chain to check if deposit was released
   const pollForRelease = useCallback((sourceChainId: number, depNum: bigint) => {
     if (pollRef.current) clearInterval(pollRef.current);
 
-    const bdagBridge = CONTRACTS[1404]?.bridgeERC20;
-    if (!bdagBridge) return;
+    const destChainId = sourceChainId === 1404 ? 56 : 1404;
+    const destRpc = destChainId === 1404 ? 'https://rpc.bdagscan.com' : 'https://bsc-rpc.publicnode.com';
+    const destBridge = CONTRACTS[destChainId]?.bridgeERC20;
+    if (!destBridge) return;
 
     let attempts = 0;
     pollRef.current = setInterval(async () => {
@@ -113,14 +166,14 @@ export function useBridge() {
           jsonrpc: '2.0',
           method: 'eth_call',
           params: [{
-            to: bdagBridge,
+            to: destBridge,
             data: '0x' + '047a7fe5' + // releasedDeposits(uint256,uint256)
               sourceChainId.toString(16).padStart(64, '0') +
               depNum.toString(16).padStart(64, '0'),
           }, 'latest'],
           id: 1,
         });
-        const res = await fetch('https://rpc.bdagscan.com', {
+        const res = await fetch(destRpc, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body,
@@ -128,15 +181,19 @@ export function useBridge() {
         const json = await res.json();
         // releasedDeposits returns bool — 0x...01 means true
         if (json.result && json.result !== '0x' + '0'.repeat(64)) {
+          clearInterval(pollRef.current!);
+          // Find the release tx hash before marking complete
+          if (address) {
+            await findReleaseTx(sourceChainId, depNum, address);
+          }
           setStatus('released');
           clearState();
-          clearInterval(pollRef.current!);
         }
       } catch {
         // ignore poll errors
       }
     }, 5000);
-  }, []);
+  }, [address, findReleaseTx]);
 
   // Restore state from localStorage on mount
   useEffect(() => {
@@ -150,6 +207,7 @@ export function useBridge() {
     if (saved.status === 'waiting_relayer' || saved.status === 'confirming') {
       setStatus(saved.status);
       if (saved.txHash) setTxHash(saved.txHash);
+      if (saved.sourceChainId) setActiveSourceChainId(saved.sourceChainId);
       if (saved.depositNumber) {
         const depNum = BigInt(saved.depositNumber);
         setDepositNumber(depNum);
@@ -195,6 +253,7 @@ export function useBridge() {
     if (!address) return;
     const to = (receiver || address) as `0x${string}`;
     const targetChainId = sourceChainId === 1404 ? 56 : 1404;
+    setActiveSourceChainId(sourceChainId);
     const contracts = CONTRACTS[sourceChainId];
     if (!contracts) {
       setError('Chain not supported');
@@ -350,7 +409,8 @@ export function useBridge() {
     setError(undefined);
     setConfirmations(0);
     setDepositBlock(undefined);
+    setActiveSourceChainId(undefined);
   }, []);
 
-  return { bridge, status, txHash, releaseTxHash, depositNumber, error, reset, confirmations, requiredConfirmations };
+  return { bridge, status, txHash, releaseTxHash, depositNumber, error, reset, confirmations, requiredConfirmations, sourceChainId: activeSourceChainId };
 }
