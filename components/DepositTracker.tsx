@@ -32,7 +32,7 @@ export function DepositTracker({ status, txHash, error, onReset, confirmations, 
   const isComplete = status === 'released';
   const isError = status === 'error';
   const showConfirmations = (status === 'confirming' || status === 'waiting_relayer') &&
-    confirmations !== undefined && requiredConfirmations !== undefined;
+    confirmations !== undefined && requiredConfirmations !== undefined && confirmations > 0;
   const confCount = confirmations ?? 0;
   const confRequired = requiredConfirmations ?? 15;
   const confProgress = Math.min(confCount / confRequired, 1);
