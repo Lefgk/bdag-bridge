@@ -1,4 +1,5 @@
 import config from './bridge-config.json';
+import { getDestChainId } from './chainUtils';
 
 export interface Token {
   symbol: string;
@@ -22,7 +23,8 @@ export const BRIDGE_TOKENS: Token[] = config.tokens.map(t => ({
 }));
 
 export function getTokensForChain(chainId: number): Token[] {
-  return BRIDGE_TOKENS.filter(t => t.addresses[chainId]);
+  const destChainId = getDestChainId(chainId);
+  return BRIDGE_TOKENS.filter(t => t.addresses[chainId] && t.addresses[destChainId]);
 }
 
 export function getDecimals(token: Token, chainId: number): number {
