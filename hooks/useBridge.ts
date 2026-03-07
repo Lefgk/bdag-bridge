@@ -12,7 +12,7 @@ export type BridgeStatus = 'idle' | 'switching' | 'approving' | 'depositing' | '
 
 const STORAGE_KEY = 'bdag_bridge_state';
 const BDAG_CHAIN_ID = 1404;
-const BDAG_GAS_PRICE = 20000000n;
+const BDAG_GAS_PRICE = 50000000n;
 
 function bdagGasOverrides(chainId: number) {
   return chainId === BDAG_CHAIN_ID ? { gasPrice: BDAG_GAS_PRICE } : {};
