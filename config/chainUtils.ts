@@ -6,14 +6,38 @@ export const RELAYER_API = process.env.NEXT_PUBLIC_RELAYER_API || 'https://town-
 export const BSC_CHAIN_ID = 56;
 export const BDAG_CHAIN_ID = 1404;
 
-export const RPC: Record<number, string> = {
-  [BSC_CHAIN_ID]: 'https://bsc-rpc.publicnode.com',
-  [BDAG_CHAIN_ID]: 'https://rpc.bdagscan.com',
+// Multiple RPCs per chain for rotation / fallback
+const RPC_LIST: Record<number, string[]> = {
+  [BSC_CHAIN_ID]: [
+    'https://bsc-rpc.publicnode.com',
+    'https://bnb-mainnet.g.alchemy.com/v2/u8XmfIEpe-HMRFRgUGSRc7k2WeT2SeS6',
+  ],
+  [BDAG_CHAIN_ID]: [
+    'https://rpc.bdagscan.com',
+  ],
 };
 
+const rpcIndex: Record<number, number> = {};
+
 export function getRpc(chainId: number): string {
-  return RPC[chainId] || RPC[BSC_CHAIN_ID];
+  const list = RPC_LIST[chainId] || RPC_LIST[BSC_CHAIN_ID];
+  const idx = rpcIndex[chainId] || 0;
+  return list[idx % list.length];
 }
+
+/** Rotate to next RPC for a chain (call on RPC failure) */
+export function rotateRpc(chainId: number): string {
+  const list = RPC_LIST[chainId] || RPC_LIST[BSC_CHAIN_ID];
+  const next = ((rpcIndex[chainId] || 0) + 1) % list.length;
+  rpcIndex[chainId] = next;
+  return list[next];
+}
+
+// Keep backward compat
+export const RPC: Record<number, string> = {
+  [BSC_CHAIN_ID]: RPC_LIST[BSC_CHAIN_ID][0],
+  [BDAG_CHAIN_ID]: RPC_LIST[BDAG_CHAIN_ID][0],
+};
 
 export function getDestChainId(sourceChainId: number): number {
   return sourceChainId === BDAG_CHAIN_ID ? BSC_CHAIN_ID : BDAG_CHAIN_ID;

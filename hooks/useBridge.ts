@@ -6,7 +6,7 @@ import { parseUnits, maxUint256, decodeEventLog, pad } from 'viem';
 import { ROUTER_ABI, BRIDGE_ERC20_ABI, ERC20_ABI } from '@/lib/abi';
 import { CONTRACTS } from '@/config/contracts';
 import { Token, getDecimals } from '@/config/tokens';
-import { getRpc, getDestChainId, rpcCall, getRequiredConfirmations, RELAYER_API } from '@/config/chainUtils';
+import { getRpc, getDestChainId, rpcCall, getRequiredConfirmations, RELAYER_API, rotateRpc } from '@/config/chainUtils';
 
 export type BridgeStatus = 'idle' | 'switching' | 'approving' | 'depositing' | 'confirming' | 'waiting_relayer' | 'released' | 'error';
 
@@ -334,18 +334,22 @@ export function useBridge() {
       } else {
         const tokenAddr = token.addresses[sourceChainId] as `0x${string}`;
 
-        // Check existing allowance
+        // Check existing allowance via direct RPC (publicClient may be stale after chain switch)
         let needsApproval = true;
-        if (publicClient) {
-          try {
-            const allowance = await publicClient.readContract({
-              address: tokenAddr,
-              abi: ERC20_ABI,
-              functionName: 'allowance',
-              args: [address, contracts.router],
-            }) as bigint;
+        try {
+          const rpc = getRpc(sourceChainId);
+          // allowance(address,address) selector = 0xdd62ed3e
+          const ownerPadded = address.slice(2).toLowerCase().padStart(64, '0');
+          const spenderPadded = contracts.router.slice(2).toLowerCase().padStart(64, '0');
+          const data = '0xdd62ed3e' + ownerPadded + spenderPadded;
+          const result = await rpcCall(rpc, 'eth_call', [{ to: tokenAddr, data }, 'latest']);
+          if (result && result !== '0x') {
+            const allowance = BigInt(result);
             needsApproval = allowance < amountParsed;
-          } catch {}
+          }
+        } catch {
+          // If RPC fails, rotate and default to requesting approval
+          rotateRpc(sourceChainId);
         }
 
         if (needsApproval) {
