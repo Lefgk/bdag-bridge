@@ -121,19 +121,32 @@ export function TransactionHistory() {
   };
 
   const handleForceAll = async () => {
-    const pending = txs.filter(tx => !tx.released);
-    if (pending.length === 0) return;
     setForceLoading('all');
     setForceResult(undefined);
-    let released = 0;
-    for (const tx of pending) {
-      try {
-        const res = await fetch(`${RELAYER_API}/check-tx/${tx.depositTxHash}`);
-        const data = await res.json();
-        if (data.status === 'released' || data.status === 'already_processed') released++;
-      } catch { /* skip */ }
+    try {
+      const res = await fetch(`${RELAYER_API}/retry-pending`);
+      const data = await res.json();
+      if (data.count === 0) {
+        setForceResult('No pending deposits found');
+      } else {
+        // Force-check each pending deposit's tx
+        let released = 0;
+        for (const item of data.pending) {
+          // Also try our own wallet's pending txs
+          const matching = txs.find(tx => !tx.released && `${tx.sourceChainId}_${tx.depositNumber}` === item.key);
+          if (matching) {
+            try {
+              const r = await fetch(`${RELAYER_API}/check-tx/${matching.depositTxHash}`);
+              const d = await r.json();
+              if (d.status === 'released' || d.status === 'already_processed') released++;
+            } catch { /* skip */ }
+          }
+        }
+        setForceResult(`Found ${data.count} pending globally, processed ${released} of yours`);
+      }
+    } catch (err: any) {
+      setForceResult(`Error: ${err.message}`);
     }
-    setForceResult(`Processed ${released}/${pending.length} pending deposits`);
     setForceLoading(null);
     refetch();
   };
