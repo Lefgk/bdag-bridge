@@ -47,9 +47,14 @@ export function ChainStatus() {
           const head = blocks[c.chainId];
           const relayer = relayerBlocks[c.chainId];
           const behind = head != null && relayer != null ? head - relayer : null;
+          const upToDate = behind != null && behind <= 50;
           return (
             <span key={c.chainId}>
               {c.name}: {head != null ? `#${head.toLocaleString()}` : '...'}
+              {upToDate && <span className="text-green-500"> ✓</span>}
+              {behind != null && behind > 50 && behind <= 1000 && (
+                <span className="text-yellow-500"> ({behind} behind)</span>
+              )}
               {behind != null && behind > 1000 && (
                 <span className="text-yellow-500"> (relayer syncing)</span>
               )}

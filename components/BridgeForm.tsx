@@ -24,6 +24,8 @@ export function BridgeForm() {
   const [sourceChainId, setSourceChainId] = useState(CHAIN_LIST[0].id);
   const [token, setToken] = useState<Token | null>(null);
   const [amount, setAmount] = useState('');
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   const targetChainId = getDestChainId(sourceChainId);
   const tokens = useMemo(() => getTokensForChain(sourceChainId), [sourceChainId]);
@@ -72,7 +74,7 @@ export function BridgeForm() {
   const receiveSymbol = token?.symbol || '';
 
   const buttonText = () => {
-    if (!isConnected) return 'Connect Wallet';
+    if (!mounted || !isConnected) return 'Connect Wallet';
     if (!token) return 'Select Token';
     if (!amount || parseFloat(amount) <= 0) return 'Enter Amount';
     switch (status) {
@@ -183,8 +185,9 @@ export function BridgeForm() {
         <div className="p-4 pt-2">
           <button
             onClick={handleBridge}
-            disabled={!isConnected || !token || !amount || parseFloat(amount) <= 0 || isActive}
+            disabled={!mounted || !isConnected || !token || !amount || parseFloat(amount) <= 0 || isActive}
             className="w-full py-3.5 rounded-xl font-sans font-semibold text-base transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-accent text-bg-dark hover:bg-accent-dim"
+            suppressHydrationWarning
           >
             {buttonText()}
           </button>

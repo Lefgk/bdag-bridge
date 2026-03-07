@@ -65,10 +65,10 @@ function extractDepositNumber(logs: any[], bridgeAddress: string): bigint | null
 }
 
 // Poll for tx receipt via direct RPC (avoids stale publicClient after chain switch)
-async function waitForReceipt(chainId: number, hash: string, maxAttempts = 60): Promise<any> {
-  const rpc = getRpc(chainId);
+async function waitForReceipt(chainId: number, hash: string, maxAttempts = 90): Promise<any> {
   for (let i = 0; i < maxAttempts; i++) {
     try {
+      const rpc = getRpc(chainId);
       const receipt = await rpcCall(rpc, 'eth_getTransactionReceipt', [hash]);
       if (receipt && receipt.blockNumber) {
         return {
@@ -77,7 +77,10 @@ async function waitForReceipt(chainId: number, hash: string, maxAttempts = 60): 
           logs: receipt.logs || [],
         };
       }
-    } catch { /* retry */ }
+    } catch {
+      // Rotate RPC on failure
+      rotateRpc(chainId);
+    }
     await new Promise(r => setTimeout(r, 2000));
   }
   throw new Error('Transaction confirmation timeout');
@@ -163,6 +166,28 @@ export function useBridge() {
         } catch { /* skip */ }
       }
     } catch { /* ignore */ }
+  }, []);
+
+  // Fallback polling by tx hash when depositNumber can't be extracted
+  const pollForReleaseByTxHash = useCallback((hash: string, _sourceChainId: number) => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    let attempts = 0;
+    pollRef.current = setInterval(async () => {
+      attempts++;
+      if (attempts > 720) { clearInterval(pollRef.current!); return; }
+      try {
+        const res = await fetch(`${RELAYER_API}/check-tx/${hash}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        // API returns: { status: 'already_processed'|'released', releaseTxHash }
+        if (data.status === 'already_processed' || data.status === 'released') {
+          clearInterval(pollRef.current!);
+          if (data.releaseTxHash?.startsWith('0x')) setReleaseTxHash(data.releaseTxHash);
+          setStatus('released');
+          clearState();
+        }
+      } catch { /* ignore */ }
+    }, 5000);
   }, []);
 
   const pollForRelease = useCallback((sourceChainId: number, depNum: bigint) => {
@@ -306,11 +331,21 @@ export function useBridge() {
       persistState('waiting_relayer', hash, depNum, sourceChainId);
       pollForRelease(sourceChainId, depNum);
     } else {
-      // Couldn't extract depositNumber — still transition to waiting
+      // Couldn't extract depositNumber — recover it from RPC receipt and still poll
       setStatus('waiting_relayer');
       persistState('waiting_relayer', hash, undefined, sourceChainId);
+      recoverDepositNumber(hash, sourceChainId).then(recovered => {
+        if (recovered !== null) {
+          setDepositNumber(recovered);
+          persistState('waiting_relayer', hash, recovered, sourceChainId);
+          pollForRelease(sourceChainId, recovered);
+        } else {
+          // Last resort: poll using check-tx API endpoint
+          pollForReleaseByTxHash(hash, sourceChainId);
+        }
+      });
     }
-  }, [startConfirmationPolling, persistState, pollForRelease]);
+  }, [startConfirmationPolling, persistState, pollForRelease, recoverDepositNumber, pollForReleaseByTxHash]);
 
   const bridge = useCallback(async (
     sourceChainId: number,
@@ -319,6 +354,7 @@ export function useBridge() {
     receiver?: string,
   ) => {
     if (!address) return;
+    setError(undefined);
     const to = (receiver || address) as `0x${string}`;
     const targetChainId = getDestChainId(sourceChainId);
     setActiveSourceChainId(sourceChainId);

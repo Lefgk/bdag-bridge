@@ -31,7 +31,8 @@
       "contracts": {
         "router": "0x1D5c8d068a8C2dBdC4bb371effb62870482aeb88",
         "bridgeERC20": "0x760927a63e76BbE74Dd1721d2ba39340d1278Cca",
-        "liquidityManager": "0x0745DB12c2faab740DA09f69310B5b9604A6FFff"
+        "liquidityManager": "0x0745DB12c2faab740DA09f69310B5b9604A6FFff",
+        "feeSplitter": "0x42261CDD0D6E0D2229502F0b38a6DA387e95cDEC"
       }
     },
     "1404": {
