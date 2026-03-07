@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useAccount, useWriteContract, useSwitchChain } from 'wagmi';
 import config from '@/config/bridge-config.json';
 import {
   getRpc,
@@ -8,10 +9,8 @@ import {
   getBlockNumber,
   chainLabel,
   explorerTxUrl,
-  BSC_CHAIN_ID,
-  BDAG_CHAIN_ID,
 } from '@/config/chainUtils';
-import { formatUnits } from 'viem';
+import { formatUnits, parseUnits } from 'viem';
 
 const FEE_RATE = 0.006;
 
@@ -19,16 +18,43 @@ const FEE_RATE = 0.006;
 const ERC20_DEPOSITED_TOPIC =
   '0xd6e7f41ecbe30f60a5c6818a6a0e8bc6f14e610e6262c63c6521dda51a8fa907';
 
-// Build token lookup: lowercase address -> { symbol, decimals }
+// Minimal ABIs for fee collection
+const BRIDGE_WITHDRAW_ABI = [
+  {
+    inputs: [
+      { name: '_token', type: 'address' },
+      { name: '_amount', type: 'uint256' },
+      { name: '_to', type: 'address' },
+    ],
+    name: 'withdrawFees',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+] as const;
+
+const FEE_SPLITTER_DISTRIBUTE_ABI = [
+  {
+    inputs: [
+      { name: 'token', type: 'address' },
+      { name: 'amount', type: 'uint256' },
+    ],
+    name: 'distribute',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+] as const;
+
+// Derive chain IDs, tokens, and lookup from config
+const CHAIN_IDS = Object.keys(config.chains).map(Number);
+
 type TokenInfo = { symbol: string; decimals: number };
 const tokenLookup: Record<string, TokenInfo> = {};
 for (const token of config.tokens) {
   for (const [, chain] of Object.entries(token.addresses)) {
-    const addr = (chain as { address: string; decimals: number }).address.toLowerCase();
-    tokenLookup[addr] = {
-      symbol: token.symbol,
-      decimals: (chain as { address: string; decimals: number }).decimals,
-    };
+    const c = chain as { address: string; decimals: number };
+    tokenLookup[c.address.toLowerCase()] = { symbol: token.symbol, decimals: c.decimals };
   }
 }
 
@@ -37,21 +63,41 @@ interface DepositEvent {
   symbol: string;
   decimals: number;
   amount: bigint;
-  receiver: string;
   sourceChainId: number;
   targetChainId: number;
   depositNumber: number;
   txHash: string;
   blockNumber: number;
-  chainId: number; // which chain the event was on
+  chainId: number;
 }
 
-interface TokenSummary {
+// Per-chain per-token balance of bridge contract
+interface BridgeBalance {
+  chainId: number;
+  chainName: string;
   symbol: string;
-  volume: bigint;
   decimals: number;
+  tokenAddress: string;
+  balance: bigint;
+}
+
+// Fee summary per chain per token
+interface FeeSummary {
+  chainId: number;
+  chainName: string;
+  symbol: string;
+  decimals: number;
+  tokenAddress: string;
+  bridgeAddress: string;
+  feeSplitter?: string;
+  volume: bigint;
   fees: bigint;
   count: number;
+  bridgeBalance: bigint;
+}
+
+function getChainConfig(chainId: number) {
+  return config.chains[String(chainId) as keyof typeof config.chains];
 }
 
 async function fetchDepositLogs(
@@ -79,14 +125,10 @@ async function fetchDepositLogs(
       for (const log of logs) {
         const tokenAddr = '0x' + (log.topics[1] as string).slice(26);
         const amount = BigInt(log.topics[2] as string);
-        const receiver = '0x' + (log.topics[3] as string).slice(26);
-
-        // Decode data: sourceChainId, targetChainId, depositNumber (3 x uint256)
         const data = log.data as string;
         const sourceChainId = Number(BigInt('0x' + data.slice(2, 66)));
         const targetChainId = Number(BigInt('0x' + data.slice(66, 130)));
         const depositNumber = Number(BigInt('0x' + data.slice(130, 194)));
-
         const info = tokenLookup[tokenAddr.toLowerCase()];
 
         events.push({
@@ -94,7 +136,6 @@ async function fetchDepositLogs(
           symbol: info?.symbol || 'UNKNOWN',
           decimals: info?.decimals || 18,
           amount,
-          receiver,
           sourceChainId,
           targetChainId,
           depositNumber,
@@ -104,65 +145,119 @@ async function fetchDepositLogs(
         });
       }
     } catch (err) {
-      console.warn(`Failed to fetch logs for blocks ${start}-${end} on chain ${chainId}:`, err);
+      console.warn(`Failed to fetch logs ${start}-${end} on chain ${chainId}:`, err);
     }
   }
 
   return events;
 }
 
+// Fetch ERC20 balanceOf via raw RPC
+async function fetchBalance(chainId: number, tokenAddress: string, holderAddress: string): Promise<bigint> {
+  const rpc = getRpc(chainId);
+  const holderPadded = holderAddress.slice(2).toLowerCase().padStart(64, '0');
+  const data = '0x70a08231' + holderPadded;
+  try {
+    const result = await rpcCall(rpc, 'eth_call', [{ to: tokenAddress, data }, 'latest']);
+    return result && result !== '0x' ? BigInt(result) : 0n;
+  } catch {
+    return 0n;
+  }
+}
+
 function formatTokenAmount(amount: bigint, decimals: number): string {
   const formatted = formatUnits(amount, decimals);
   const num = parseFloat(formatted);
-  if (num === 0) return '0.0000000';
+  if (num === 0) return '0';
   if (num < 0.0001) return num.toFixed(7);
-  return num.toFixed(4);
+  if (num < 1) return num.toFixed(4);
+  return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
 }
 
-function formatDate(blockNumber: number): string {
-  // We don't have timestamps from getLogs, just show block number
-  return `#${blockNumber.toLocaleString()}`;
+function chainGasOverrides(chainId: number) {
+  const chain = getChainConfig(chainId);
+  if (chain && 'gasPrice' in chain && chain.gasPrice) {
+    return { gasPrice: BigInt(chain.gasPrice as number) };
+  }
+  return {};
 }
 
 export function FeesPanel() {
+  const { address, chainId: walletChainId } = useAccount();
+  const { writeContractAsync } = useWriteContract();
+  const { switchChainAsync } = useSwitchChain();
+
   const [deposits, setDeposits] = useState<DepositEvent[]>([]);
+  const [bridgeBalances, setBridgeBalances] = useState<Record<string, bigint>>({});
   const [loading, setLoading] = useState(true);
+  const [balancesLoading, setBalancesLoading] = useState(true);
   const [error, setError] = useState<string>();
   const [progress, setProgress] = useState('');
+  const [collectingKey, setCollectingKey] = useState<string>();
+  const [collectStatus, setCollectStatus] = useState<string>();
+  const [collectAmounts, setCollectAmounts] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    fetchAllDeposits();
+  const isAdmin = address?.toLowerCase() === config.admin.toLowerCase();
+
+  // Fetch bridge balances for all chains/tokens
+  const fetchBridgeBalances = useCallback(async () => {
+    setBalancesLoading(true);
+    const balances: Record<string, bigint> = {};
+
+    const promises: Promise<void>[] = [];
+    for (const chainIdStr of Object.keys(config.chains)) {
+      const chainId = Number(chainIdStr);
+      const chain = getChainConfig(chainId);
+      if (!chain) continue;
+      const bridgeAddr = chain.contracts.bridgeERC20;
+
+      for (const token of config.tokens) {
+        const tokenChain = token.addresses[chainIdStr as keyof typeof token.addresses] as
+          | { address: string; decimals: number }
+          | undefined;
+        if (!tokenChain) continue;
+
+        const key = `${chainId}-${token.symbol}`;
+        promises.push(
+          fetchBalance(chainId, tokenChain.address, bridgeAddr).then((bal) => {
+            balances[key] = bal;
+          })
+        );
+      }
+    }
+
+    await Promise.all(promises);
+    setBridgeBalances(balances);
+    setBalancesLoading(false);
   }, []);
 
-  async function fetchAllDeposits() {
+  // Fetch deposit events
+  const fetchAllDeposits = useCallback(async () => {
     setLoading(true);
     setError(undefined);
     setDeposits([]);
 
     try {
-      // BSC: last 50,000 blocks in 5000-block chunks
-      setProgress('Fetching BSC block number...');
-      const bscRpc = getRpc(BSC_CHAIN_ID);
-      const bscLatest = await getBlockNumber(bscRpc);
-      const bscFrom = bscLatest - 50_000;
-      const bscBridge = config.chains['56'].contracts.bridgeERC20;
+      const allEvents: DepositEvent[] = [];
 
-      setProgress('Scanning BSC deposits...');
-      const bscEvents = await fetchDepositLogs(BSC_CHAIN_ID, bscBridge, bscFrom, bscLatest, 5000);
+      for (const chainIdStr of Object.keys(config.chains)) {
+        const chainId = Number(chainIdStr);
+        const chain = getChainConfig(chainId);
+        if (!chain) continue;
 
-      // BlockDAG: from 0x17D000 to latest
-      setProgress('Fetching BlockDAG block number...');
-      const bdagRpc = getRpc(BDAG_CHAIN_ID);
-      const bdagLatest = await getBlockNumber(bdagRpc);
-      const bdagFrom = 0x17d000; // ~1,560,576
-      const bdagBridge = config.chains['1404'].contracts.bridgeERC20;
+        setProgress(`Fetching ${chain.label} block number...`);
+        const rpc = getRpc(chainId);
+        const latest = await getBlockNumber(rpc);
+        // Scan last 50000 blocks (or from a known start block)
+        const fromBlock = Math.max(0, latest - 50_000);
+        const bridgeAddr = chain.contracts.bridgeERC20;
 
-      setProgress('Scanning BlockDAG deposits...');
-      const bdagEvents = await fetchDepositLogs(BDAG_CHAIN_ID, bdagBridge, bdagFrom, bdagLatest, 5000);
+        setProgress(`Scanning ${chain.label} deposits...`);
+        const events = await fetchDepositLogs(chainId, bridgeAddr, fromBlock, latest, 5000);
+        allEvents.push(...events);
+      }
 
-      const allEvents = [...bscEvents, ...bdagEvents].sort(
-        (a, b) => b.blockNumber - a.blockNumber
-      );
+      allEvents.sort((a, b) => b.blockNumber - a.blockNumber);
       setDeposits(allEvents);
       setProgress('');
     } catch (err: any) {
@@ -170,48 +265,131 @@ export function FeesPanel() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  // Aggregate by token
-  const tokenSummaries: Record<string, TokenSummary> = {};
-  for (const d of deposits) {
-    if (!tokenSummaries[d.symbol]) {
-      tokenSummaries[d.symbol] = {
-        symbol: d.symbol,
-        volume: 0n,
-        decimals: d.decimals,
-        fees: 0n,
-        count: 0,
-      };
-    }
-    const s = tokenSummaries[d.symbol];
-    s.volume += d.amount;
-    // fee = amount * 0.006 = amount * 6 / 1000
-    s.fees += (d.amount * 6n) / 1000n;
-    s.count += 1;
-  }
+  useEffect(() => {
+    fetchAllDeposits();
+    fetchBridgeBalances();
+  }, [fetchAllDeposits, fetchBridgeBalances]);
 
-  // Order: show tokens with activity first
-  const orderedTokens = Object.values(tokenSummaries).sort((a, b) => {
-    if (b.volume > a.volume) return 1;
-    if (b.volume < a.volume) return -1;
-    return 0;
-  });
+  // Build fee summary: per chain per token
+  const feeSummaries: FeeSummary[] = [];
+  for (const chainIdStr of Object.keys(config.chains)) {
+    const chainId = Number(chainIdStr);
+    const chain = getChainConfig(chainId);
+    if (!chain) continue;
 
-  // Also show tokens with zero activity
-  for (const token of config.tokens) {
-    if (!tokenSummaries[token.symbol]) {
-      orderedTokens.push({
+    for (const token of config.tokens) {
+      const tokenChain = token.addresses[chainIdStr as keyof typeof token.addresses] as
+        | { address: string; decimals: number }
+        | undefined;
+      if (!tokenChain) continue;
+
+      const key = `${chainId}-${token.symbol}`;
+      const chainDeposits = deposits.filter(
+        (d) => d.chainId === chainId && d.symbol === token.symbol
+      );
+
+      let volume = 0n;
+      let fees = 0n;
+      for (const d of chainDeposits) {
+        volume += d.amount;
+        fees += (d.amount * 6n) / 1000n;
+      }
+
+      feeSummaries.push({
+        chainId,
+        chainName: chain.label,
         symbol: token.symbol,
-        volume: 0n,
-        decimals: 18,
-        fees: 0n,
-        count: 0,
+        decimals: tokenChain.decimals,
+        tokenAddress: tokenChain.address,
+        bridgeAddress: chain.contracts.bridgeERC20,
+        feeSplitter: 'feeSplitter' in chain.contracts ? (chain.contracts as any).feeSplitter : undefined,
+        volume,
+        fees,
+        count: chainDeposits.length,
+        bridgeBalance: bridgeBalances[key] || 0n,
       });
     }
   }
 
+  // Sort: chains with fees first, then by fees desc
+  feeSummaries.sort((a, b) => {
+    if (b.fees > a.fees) return 1;
+    if (b.fees < a.fees) return -1;
+    return a.chainName.localeCompare(b.chainName);
+  });
+
   const totalTxCount = deposits.length;
+
+  // Collect & distribute fees: 2 txs sequentially
+  async function collectFees(summary: FeeSummary) {
+    const key = `${summary.chainId}-${summary.symbol}`;
+    const amountStr = collectAmounts[key];
+    if (!amountStr || !address) return;
+
+    try {
+      setCollectingKey(key);
+      setCollectStatus('Switching chain...');
+
+      // Switch to the chain where fees are
+      if (walletChainId !== summary.chainId) {
+        await switchChainAsync({ chainId: summary.chainId });
+      }
+
+      const amount = parseUnits(amountStr, summary.decimals);
+      const feeSplitterAddr = summary.feeSplitter;
+
+      if (!feeSplitterAddr) {
+        // No feeSplitter on this chain — just withdraw to admin
+        setCollectStatus('Withdrawing fees to admin...');
+        await writeContractAsync({
+          address: summary.bridgeAddress as `0x${string}`,
+          abi: BRIDGE_WITHDRAW_ABI,
+          functionName: 'withdrawFees',
+          args: [summary.tokenAddress as `0x${string}`, amount, address],
+          ...chainGasOverrides(summary.chainId),
+        });
+        setCollectStatus('Done!');
+      } else {
+        // Step 1: Withdraw from bridge to FeeSplitter
+        setCollectStatus('Step 1/2: Withdrawing to FeeSplitter...');
+        await writeContractAsync({
+          address: summary.bridgeAddress as `0x${string}`,
+          abi: BRIDGE_WITHDRAW_ABI,
+          functionName: 'withdrawFees',
+          args: [summary.tokenAddress as `0x${string}`, amount, feeSplitterAddr as `0x${string}`],
+          ...chainGasOverrides(summary.chainId),
+        });
+
+        // Step 2: Distribute from FeeSplitter
+        setCollectStatus('Step 2/2: Distributing to wallets...');
+        await writeContractAsync({
+          address: feeSplitterAddr as `0x${string}`,
+          abi: FEE_SPLITTER_DISTRIBUTE_ABI,
+          functionName: 'distribute',
+          args: [summary.tokenAddress as `0x${string}`, amount],
+          ...chainGasOverrides(summary.chainId),
+        });
+        setCollectStatus('Done!');
+      }
+
+      // Refresh balances
+      setTimeout(() => {
+        fetchBridgeBalances();
+        setCollectingKey(undefined);
+        setCollectStatus(undefined);
+        setCollectAmounts((prev) => ({ ...prev, [key]: '' }));
+      }, 2000);
+    } catch (err: any) {
+      const msg = err.shortMessage || err.message;
+      setCollectStatus(msg?.includes('User rejected') ? 'Cancelled' : `Error: ${msg}`);
+      setTimeout(() => {
+        setCollectingKey(undefined);
+        setCollectStatus(undefined);
+      }, 3000);
+    }
+  }
 
   // Recent 20 transactions
   const recent = deposits.slice(0, 20);
@@ -220,7 +398,7 @@ export function FeesPanel() {
     <div className="space-y-6">
       <div className="text-center">
         <h1 className="text-3xl font-sans font-bold text-white mb-2">Bridge Fee Analytics</h1>
-        <p className="text-gray-400 text-sm">Admin view — fee collection across all bridge contracts</p>
+        <p className="text-gray-400 text-sm">Fee collection & bridge balances across all chains</p>
       </div>
 
       {loading && (
@@ -256,32 +434,96 @@ export function FeesPanel() {
             </div>
           </div>
 
-          {/* Token Summary Table */}
+          {/* Fees & Bridge Balances Table — per chain per token */}
           <div className="bg-card rounded-2xl p-5 border border-gray-800">
-            <h2 className="text-sm font-sans font-semibold text-gray-300 mb-4">Fees by Token</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-sans font-semibold text-gray-300">
+                Fees & Bridge Balances
+              </h2>
+              <button
+                onClick={fetchBridgeBalances}
+                disabled={balancesLoading}
+                className="text-xs px-3 py-1 rounded-lg bg-accent/10 text-accent border border-accent/30 hover:bg-accent/20 transition-colors disabled:opacity-50"
+              >
+                {balancesLoading ? 'Refreshing...' : 'Refresh'}
+              </button>
+            </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-gray-500 text-xs border-b border-gray-800">
+                    <th className="text-left pb-2 pr-3 font-medium">Chain</th>
                     <th className="text-left pb-2 pr-3 font-medium">Token</th>
                     <th className="text-right pb-2 pr-3 font-medium">Txns</th>
                     <th className="text-right pb-2 pr-3 font-medium">Volume</th>
-                    <th className="text-right pb-2 font-medium">Fees Earned</th>
+                    <th className="text-right pb-2 pr-3 font-medium">Fees Earned</th>
+                    <th className="text-right pb-2 pr-3 font-medium">Bridge Balance</th>
+                    {isAdmin && <th className="text-right pb-2 font-medium">Collect</th>}
                   </tr>
                 </thead>
                 <tbody>
-                  {orderedTokens.map((t) => (
-                    <tr key={t.symbol} className="border-b border-gray-800/50 last:border-0">
-                      <td className="py-2.5 pr-3 text-white font-medium">{t.symbol}</td>
-                      <td className="py-2.5 pr-3 text-right text-gray-400 font-mono">{t.count}</td>
-                      <td className="py-2.5 pr-3 text-right text-white font-mono">
-                        {formatTokenAmount(t.volume, t.decimals)}
-                      </td>
-                      <td className="py-2.5 text-right text-accent font-mono">
-                        {formatTokenAmount(t.fees, t.decimals)}
-                      </td>
-                    </tr>
-                  ))}
+                  {feeSummaries.map((s) => {
+                    const key = `${s.chainId}-${s.symbol}`;
+                    const isCollecting = collectingKey === key;
+                    return (
+                      <tr key={key} className="border-b border-gray-800/50 last:border-0">
+                        <td className="py-2.5 pr-3">
+                          <span
+                            className={`inline-block px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap ${
+                              s.chainId === 56
+                                ? 'bg-[#F3BA2F]/15 text-[#F3BA2F] border border-[#F3BA2F]/30'
+                                : 'bg-accent/15 text-accent border border-accent/30'
+                            }`}
+                          >
+                            {s.chainName}
+                          </span>
+                        </td>
+                        <td className="py-2.5 pr-3 text-white font-medium">{s.symbol}</td>
+                        <td className="py-2.5 pr-3 text-right text-gray-400 font-mono">{s.count}</td>
+                        <td className="py-2.5 pr-3 text-right text-white font-mono whitespace-nowrap">
+                          {formatTokenAmount(s.volume, s.decimals)}
+                        </td>
+                        <td className="py-2.5 pr-3 text-right text-accent font-mono whitespace-nowrap">
+                          {formatTokenAmount(s.fees, s.decimals)}
+                        </td>
+                        <td className="py-2.5 pr-3 text-right font-mono whitespace-nowrap">
+                          {balancesLoading ? (
+                            <span className="text-gray-600">...</span>
+                          ) : (
+                            <span className={s.bridgeBalance > 0n ? 'text-green-400' : 'text-gray-600'}>
+                              {formatTokenAmount(s.bridgeBalance, s.decimals)}
+                            </span>
+                          )}
+                        </td>
+                        {isAdmin && (
+                          <td className="py-2.5 text-right">
+                            {isCollecting ? (
+                              <span className="text-xs text-yellow-400">{collectStatus}</span>
+                            ) : (
+                              <div className="flex items-center justify-end gap-1">
+                                <input
+                                  type="text"
+                                  placeholder="amt"
+                                  value={collectAmounts[key] || ''}
+                                  onChange={(e) =>
+                                    setCollectAmounts((prev) => ({ ...prev, [key]: e.target.value }))
+                                  }
+                                  className="w-20 px-2 py-1 rounded bg-gray-900 border border-gray-700 text-xs text-white font-mono focus:outline-none focus:border-accent"
+                                />
+                                <button
+                                  onClick={() => collectFees(s)}
+                                  disabled={!collectAmounts[key]}
+                                  className="px-2 py-1 rounded text-xs bg-accent/10 text-accent border border-accent/30 hover:bg-accent/20 transition-colors disabled:opacity-30 whitespace-nowrap"
+                                >
+                                  {s.feeSplitter ? 'Collect' : 'Withdraw'}
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                        )}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -290,7 +532,7 @@ export function FeesPanel() {
           {/* Recent Transactions */}
           <div className="bg-card rounded-2xl p-5 border border-gray-800">
             <h2 className="text-sm font-sans font-semibold text-gray-300 mb-4">
-              Recent Fee Transactions{deposits.length > 20 ? ' (last 20)' : ''}
+              Recent Deposits{deposits.length > 20 ? ' (last 20)' : ''}
             </h2>
             {recent.length === 0 ? (
               <p className="text-gray-500 text-sm text-center py-4">No deposit events found.</p>
@@ -309,12 +551,12 @@ export function FeesPanel() {
                   <tbody>
                     {recent.map((d, i) => {
                       const fee = (d.amount * 6n) / 1000n;
-                      const isBscSource = d.sourceChainId === BSC_CHAIN_ID;
+                      const isBscSource = d.sourceChainId === 56;
                       const dirLabel = `${chainLabel(d.sourceChainId)} → ${chainLabel(d.targetChainId)}`;
                       return (
                         <tr key={`${d.txHash}-${i}`} className="border-b border-gray-800/50 last:border-0">
                           <td className="py-2.5 pr-3 text-gray-400 font-mono text-xs whitespace-nowrap">
-                            {formatDate(d.blockNumber)}
+                            #{d.blockNumber.toLocaleString()}
                           </td>
                           <td className="py-2.5 pr-3">
                             <span
@@ -352,43 +594,30 @@ export function FeesPanel() {
             )}
           </div>
 
-          {/* Contract Info */}
+          {/* Contract Info — auto-generated from config */}
           <div className="bg-card rounded-2xl p-5 border border-gray-800">
-            <h2 className="text-sm font-sans font-semibold text-gray-300 mb-3">Fee Collection Contracts</h2>
+            <h2 className="text-sm font-sans font-semibold text-gray-300 mb-3">Bridge Contracts</h2>
             <div className="space-y-2 text-xs">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-400">BSC Bridge</span>
-                <a
-                  href={`https://bscscan.com/address/${config.chains['56'].contracts.bridgeERC20}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-accent hover:text-accent-dim font-mono"
-                >
-                  {config.chains['56'].contracts.bridgeERC20}
-                </a>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-400">BSC FeeSplitter</span>
-                <a
-                  href={`https://bscscan.com/address/${config.chains['56'].contracts.feeSplitter}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-accent hover:text-accent-dim font-mono"
-                >
-                  {config.chains['56'].contracts.feeSplitter}
-                </a>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-400">BDAG Bridge</span>
-                <a
-                  href={`https://bdagscan.com/address/${config.chains['1404'].contracts.bridgeERC20}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-accent hover:text-accent-dim font-mono"
-                >
-                  {config.chains['1404'].contracts.bridgeERC20}
-                </a>
-              </div>
+              {CHAIN_IDS.map((cid) => {
+                const chain = getChainConfig(cid);
+                if (!chain) return null;
+                const explorer = chain.explorer;
+                return Object.entries(chain.contracts).map(([name, addr]) => (
+                  <div key={`${cid}-${name}`} className="flex justify-between items-center">
+                    <span className="text-gray-400">
+                      {chain.label} {name}
+                    </span>
+                    <a
+                      href={`${explorer}/address/${addr}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-accent hover:text-accent-dim font-mono"
+                    >
+                      {addr}
+                    </a>
+                  </div>
+                ));
+              })}
             </div>
           </div>
         </>

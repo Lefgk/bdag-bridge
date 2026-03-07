@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { BSC_CHAIN_ID, BDAG_CHAIN_ID, getRpc, chainName, getBlockNumber, RELAYER_API } from '@/config/chainUtils';
+import { getRpc, getBlockNumber, RELAYER_API } from '@/config/chainUtils';
+import config from '@/config/bridge-config.json';
 
-const CHAINS = [
-  { chainId: BSC_CHAIN_ID, name: chainName(BSC_CHAIN_ID) },
-  { chainId: BDAG_CHAIN_ID, name: chainName(BDAG_CHAIN_ID) },
-];
+// Build chain list from config
+const CHAINS = Object.entries(config.chains).map(([id, chain]) => ({
+  chainId: Number(id),
+  name: (chain as any).label as string,
+}));
 
 export function ChainStatus() {
   const [blocks, setBlocks] = useState<Record<number, number | null>>({});
@@ -16,7 +18,6 @@ export function ChainStatus() {
   useEffect(() => {
     mountedRef.current = true;
     const poll = async () => {
-      // Fetch current chain heads
       const results: Record<number, number | null> = {};
       await Promise.all(
         CHAINS.map(async (c) => {
@@ -26,7 +27,6 @@ export function ChainStatus() {
       );
       if (mountedRef.current) setBlocks(results);
 
-      // Fetch relayer status
       try {
         const res = await fetch(`${RELAYER_API}/status`);
         if (res.ok) {
@@ -42,7 +42,7 @@ export function ChainStatus() {
 
   return (
     <div className="flex flex-col items-center gap-1 text-xs text-gray-500">
-      <div className="flex gap-4">
+      <div className="flex gap-4 flex-wrap justify-center">
         {CHAINS.map((c) => {
           const head = blocks[c.chainId];
           const relayer = relayerBlocks[c.chainId];
