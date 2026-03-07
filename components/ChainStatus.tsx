@@ -36,7 +36,7 @@ export function ChainStatus() {
       } catch { /* relayer offline */ }
     };
     poll();
-    const interval = setInterval(poll, 10000);
+    const interval = setInterval(poll, 5000);
     return () => { mountedRef.current = false; clearInterval(interval); };
   }, []);
 
