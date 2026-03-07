@@ -67,7 +67,7 @@ const ERC20_RELEASED_TOPIC = '0x6cd20a27d08ca93726a4abae8161aa3ce390af9a7755e6ea
 async function findReleaseTxHash(
   sourceChainId: number,
   depositNumber: bigint,
-  receiver: string,
+  _receiver: string,
   depositTxHash?: string,
 ): Promise<string | undefined> {
   const destChainId = getDestChainId(sourceChainId);
@@ -75,20 +75,18 @@ async function findReleaseTxHash(
   const bridge = CONTRACTS[destChainId]?.bridgeERC20;
   if (!bridge) return undefined;
 
-  // Method 1: Search on-chain logs with event signature + receiver filter
+  // Method 1: Search on-chain logs by event signature only, match by depositNumber
   try {
-    const receiverTopic = pad(receiver as `0x${string}`, { size: 32 });
     const latestBlock = await getBlockNumber(destRpc);
     const fromBlock = Math.max(0, latestBlock - 50_000);
 
-    // Chunk queries to avoid RPC limits (especially BSC)
     const chunkSize = destChainId === BSC_CHAIN_ID ? 5000 : 50_000;
     for (let from = fromBlock; from <= latestBlock; from += chunkSize) {
       const to = Math.min(from + chunkSize - 1, latestBlock);
       try {
         const logs = await rpcCall(destRpc, 'eth_getLogs', [{
           address: bridge,
-          topics: [ERC20_RELEASED_TOPIC, null, null, receiverTopic],
+          topics: [ERC20_RELEASED_TOPIC],
           fromBlock: '0x' + from.toString(16),
           toBlock: '0x' + to.toString(16),
         }]);
@@ -109,7 +107,7 @@ async function findReleaseTxHash(
     }
   } catch { /* ignore */ }
 
-  // Method 2: Fallback to relayer API if we have the deposit tx hash
+  // Method 2: Fallback to relayer API
   if (depositTxHash) {
     try {
       const res = await fetch(`${RELAYER_API}/check-tx/${depositTxHash}`);
