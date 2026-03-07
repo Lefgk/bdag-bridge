@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { useAccount, useWriteContract, usePublicClient, useSwitchChain } from 'wagmi';
+import { useAccount, useWriteContract, useSwitchChain } from 'wagmi';
 import { parseUnits, maxUint256, decodeEventLog, pad } from 'viem';
 import { ROUTER_ABI, BRIDGE_ERC20_ABI, ERC20_ABI } from '@/lib/abi';
 import { CONTRACTS } from '@/config/contracts';
@@ -61,11 +61,29 @@ function extractDepositNumber(logs: any[], bridgeAddress: string): bigint | null
   return null;
 }
 
+// Poll for tx receipt via direct RPC (avoids stale publicClient after chain switch)
+async function waitForReceipt(chainId: number, hash: string, maxAttempts = 60): Promise<any> {
+  const rpc = getRpc(chainId);
+  for (let i = 0; i < maxAttempts; i++) {
+    try {
+      const receipt = await rpcCall(rpc, 'eth_getTransactionReceipt', [hash]);
+      if (receipt && receipt.blockNumber) {
+        return {
+          status: receipt.status === '0x1' ? 'success' : 'reverted',
+          blockNumber: BigInt(receipt.blockNumber),
+          logs: receipt.logs || [],
+        };
+      }
+    } catch { /* retry */ }
+    await new Promise(r => setTimeout(r, 2000));
+  }
+  throw new Error('Transaction confirmation timeout');
+}
+
 export function useBridge() {
   const { address, chainId } = useAccount();
   const { switchChainAsync } = useSwitchChain();
   const { writeContractAsync } = useWriteContract();
-  const publicClient = usePublicClient();
 
   const [status, setStatus] = useState<BridgeStatus>('idle');
   const [txHash, setTxHash] = useState<string>();
@@ -330,10 +348,8 @@ export function useBridge() {
         setStatus('confirming');
         persistState('confirming', hash, undefined, sourceChainId);
 
-        if (publicClient) {
-          const receipt = await publicClient.waitForTransactionReceipt({ hash });
-          await handleDepositReceipt(receipt, hash, sourceChainId, contracts);
-        }
+        const receipt = await waitForReceipt(sourceChainId, hash);
+        await handleDepositReceipt(receipt, hash, sourceChainId, contracts);
       } else {
         const tokenAddr = token.addresses[sourceChainId] as `0x${string}`;
 
@@ -364,13 +380,11 @@ export function useBridge() {
             args: [contracts.router, maxUint256],
             ...bdagGasOverrides(sourceChainId),
           });
-          if (publicClient) {
-            const approveReceipt = await publicClient.waitForTransactionReceipt({ hash: approveHash });
-            if (approveReceipt.status !== 'success') {
-              setError('Approval transaction failed');
-              setStatus('error');
-              return;
-            }
+          const approveReceipt = await waitForReceipt(sourceChainId, approveHash);
+          if (approveReceipt.status !== 'success') {
+            setError('Approval transaction failed');
+            setStatus('error');
+            return;
           }
         }
 
@@ -386,10 +400,8 @@ export function useBridge() {
         setStatus('confirming');
         persistState('confirming', hash, undefined, sourceChainId);
 
-        if (publicClient) {
-          const receipt = await publicClient.waitForTransactionReceipt({ hash });
-          await handleDepositReceipt(receipt, hash, sourceChainId, contracts);
-        }
+        const receipt = await waitForReceipt(sourceChainId, hash);
+        await handleDepositReceipt(receipt, hash, sourceChainId, contracts);
       }
     } catch (err: any) {
       const msg = err.shortMessage || err.message;
@@ -400,7 +412,7 @@ export function useBridge() {
       }
       setStatus('error');
     }
-  }, [address, chainId, switchChainAsync, writeContractAsync, publicClient, pollForRelease, persistState, startConfirmationPolling, handleDepositReceipt]);
+  }, [address, chainId, switchChainAsync, writeContractAsync, pollForRelease, persistState, startConfirmationPolling, handleDepositReceipt]);
 
   const reset = useCallback(() => {
     if (pollRef.current) clearInterval(pollRef.current);
