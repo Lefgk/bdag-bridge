@@ -167,8 +167,9 @@ export function useBridge() {
             const apiData = await apiRes.json();
             if (apiData.processed) {
               released = true;
-              if (apiData.releaseTxHash && apiData.releaseTxHash !== 'already-released' && apiData.releaseTxHash !== 'sent') {
-                setReleaseTxHash(apiData.releaseTxHash);
+              const rh = apiData.releaseTxHash || '';
+              if (rh && !rh.startsWith('already') && rh !== 'sent' && !rh.startsWith('unconfirmed:') && !rh.startsWith('reverted:')) {
+                setReleaseTxHash(rh);
               }
             }
           }

@@ -12,7 +12,7 @@ export const CONTRACTS: Record<number, {
   // BlockDAG (deployed)
   1404: {
     router: '0x2cfbf23402af68f242452ab0c8a7ce00b9b791e9',
-    bridgeERC20: '0x45dde3ba310f4abdf102f510f8f7a083c649efa9',
+    bridgeERC20: '0x80d0b7b3ebdffd04c580b71fa664edfcffc0033c',
     liquidityManager: '0x761e492086fe858a0585c21d5300ffcea9b71945',
   },
   // ETH (not deployed yet)
