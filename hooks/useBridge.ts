@@ -208,8 +208,8 @@ export function useBridge() {
 
         if (released) {
           clearInterval(pollRef.current!);
-          // If we don't have releaseTxHash yet, try to find it from logs
-          if (!releaseTxHash && address) {
+          // Always try to find release tx from logs (releaseTxHash closure may be stale)
+          if (address) {
             await findReleaseTx(sourceChainId, depNum, address);
           }
           setStatus('released');
@@ -217,7 +217,7 @@ export function useBridge() {
         }
       } catch { /* ignore */ }
     }, 5000);
-  }, [address, findReleaseTx, releaseTxHash]);
+  }, [address, findReleaseTx]);
 
   // Recover depositNumber from tx receipt when not persisted
   const recoverDepositNumber = useCallback(async (hash: string, sourceChainId: number): Promise<bigint | null> => {

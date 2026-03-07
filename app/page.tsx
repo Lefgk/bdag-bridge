@@ -1,5 +1,9 @@
 import { BridgeForm } from '@/components/BridgeForm';
 
 export default function BridgePage() {
-  return <BridgeForm />;
+  return (
+    <div className="max-w-lg mx-auto">
+      <BridgeForm />
+    </div>
+  );
 }
