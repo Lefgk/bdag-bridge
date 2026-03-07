@@ -29,6 +29,19 @@ const ROUTER_ADMIN_ABI = [
   { inputs: [], name: 'unpause', outputs: [], stateMutability: 'nonpayable', type: 'function' },
 ] as const;
 
+const FEE_SPLITTER_ABI = [
+  { inputs: [], name: 'wallet1', outputs: [{ type: 'address' }], stateMutability: 'view', type: 'function' },
+  { inputs: [], name: 'wallet2', outputs: [{ type: 'address' }], stateMutability: 'view', type: 'function' },
+  { inputs: [], name: 'wallet3', outputs: [{ type: 'address' }], stateMutability: 'view', type: 'function' },
+  { inputs: [], name: 'share1', outputs: [{ type: 'uint256' }], stateMutability: 'view', type: 'function' },
+  { inputs: [], name: 'share2', outputs: [{ type: 'uint256' }], stateMutability: 'view', type: 'function' },
+  { inputs: [], name: 'share3', outputs: [{ type: 'uint256' }], stateMutability: 'view', type: 'function' },
+  { inputs: [{ name: '_w1', type: 'address' }, { name: '_w3', type: 'address' }], name: 'setWallets', outputs: [], stateMutability: 'nonpayable', type: 'function' },
+  { inputs: [{ name: '_s1', type: 'uint256' }, { name: '_s3', type: 'uint256' }], name: 'setShares', outputs: [], stateMutability: 'nonpayable', type: 'function' },
+] as const;
+
+const FEE_SPLITTER = '0x926b3E0cE457C2031AB1fCDB9ff9b1a7ca10bE02' as `0x${string}`;
+
 const LM_ADMIN_ABI = [
   { inputs: [], name: 'paused', outputs: [{ type: 'bool' }], stateMutability: 'view', type: 'function' },
   { inputs: [], name: 'defaultLiquidityWithdrawalFee', outputs: [{ type: 'uint256' }], stateMutability: 'view', type: 'function' },
@@ -71,6 +84,10 @@ export default function AdminPage() {
   const [newAdminAddr, setNewAdminAddr] = useState('');
   const [srcToken, setSrcToken] = useState('');
   const [wrappedToken, setWrappedToken] = useState('');
+  const [fsW1, setFsW1] = useState('');
+  const [fsW3, setFsW3] = useState('');
+  const [fsS1, setFsS1] = useState('');
+  const [fsS3, setFsS3] = useState('');
 
   // Read contract state
   const { data: routerPaused } = useReadContract({
@@ -97,6 +114,15 @@ export default function AdminPage() {
     address: contracts?.liquidityManager, abi: LM_ADMIN_ABI, functionName: 'defaultLiquidityWithdrawalFee',
     query: { enabled: !!contracts },
   });
+
+  // FeeSplitter reads (BSC only, chainId=56)
+  const isBsc = chainId === 56;
+  const { data: fsWallet1 } = useReadContract({ address: FEE_SPLITTER, abi: FEE_SPLITTER_ABI, functionName: 'wallet1', chainId: 56, query: { enabled: isBsc } });
+  const { data: fsWallet2 } = useReadContract({ address: FEE_SPLITTER, abi: FEE_SPLITTER_ABI, functionName: 'wallet2', chainId: 56, query: { enabled: isBsc } });
+  const { data: fsWallet3 } = useReadContract({ address: FEE_SPLITTER, abi: FEE_SPLITTER_ABI, functionName: 'wallet3', chainId: 56, query: { enabled: isBsc } });
+  const { data: fsShare1 } = useReadContract({ address: FEE_SPLITTER, abi: FEE_SPLITTER_ABI, functionName: 'share1', chainId: 56, query: { enabled: isBsc } });
+  const { data: fsShare2 } = useReadContract({ address: FEE_SPLITTER, abi: FEE_SPLITTER_ABI, functionName: 'share2', chainId: 56, query: { enabled: isBsc } });
+  const { data: fsShare3 } = useReadContract({ address: FEE_SPLITTER, abi: FEE_SPLITTER_ABI, functionName: 'share3', chainId: 56, query: { enabled: isBsc } });
 
   const isAdmin = address?.toLowerCase() === ADMIN_ADDR.toLowerCase();
   const chainName = SOURCE_CHAINS.find(c => c.id === chainId)?.label || (chainId === 1404 ? 'BlockDAG' : `Chain ${chainId}`);
@@ -155,6 +181,22 @@ export default function AdminPage() {
     try {
       await writeContractAsync({ address: contracts.bridgeERC20, abi: BRIDGE_ERC20_ADMIN_ABI, functionName: 'setPeggedToken', args: [srcToken as `0x${string}`, wrappedToken as `0x${string}`] });
       showToast('Pegged token mapping set', 'success');
+    } catch (e: any) { showToast(e.shortMessage || e.message, 'error'); }
+  }
+
+  async function doSetFsWallets() {
+    if (!fsW1 || !fsW3) return;
+    try {
+      await writeContractAsync({ address: FEE_SPLITTER, abi: FEE_SPLITTER_ABI, functionName: 'setWallets', args: [fsW1 as `0x${string}`, fsW3 as `0x${string}`] });
+      showToast('FeeSplitter wallets updated', 'success');
+    } catch (e: any) { showToast(e.shortMessage || e.message, 'error'); }
+  }
+
+  async function doSetFsShares() {
+    if (!fsS1 || !fsS3) return;
+    try {
+      await writeContractAsync({ address: FEE_SPLITTER, abi: FEE_SPLITTER_ABI, functionName: 'setShares', args: [BigInt(fsS1), BigInt(fsS3)] });
+      showToast('FeeSplitter shares updated', 'success');
     } catch (e: any) { showToast(e.shortMessage || e.message, 'error'); }
   }
 
@@ -367,6 +409,58 @@ export default function AdminPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* FeeSplitter (BSC only) */}
+        <div className="bg-card rounded-xl p-5 border border-gray-800">
+          <h4 className="text-sm font-sans font-semibold text-white mb-2 flex items-center gap-2">
+            <span className="text-green-400">&#9679;</span> Fee Splitter
+            {!isBsc && <span className="text-xs text-gray-500">(switch to BSC)</span>}
+          </h4>
+          <p className="text-[11px] text-gray-500 mb-3">BSC: {FEE_SPLITTER}</p>
+
+          {isBsc && (
+            <div className="space-y-3">
+              <div className="space-y-1.5 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Wallet 1 ({fsShare1 ? `${Number(fsShare1) / 10000}%` : '—'})</span>
+                  <span className="text-gray-300 font-mono truncate ml-2 max-w-[180px]">{fsWallet1 || '—'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Wallet 2 ({fsShare2 ? `${Number(fsShare2) / 10000}%` : '—'}) <span className="text-red-400">locked</span></span>
+                  <span className="text-gray-300 font-mono truncate ml-2 max-w-[180px]">{fsWallet2 || '—'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Wallet 3 ({fsShare3 ? `${Number(fsShare3) / 10000}%` : '—'})</span>
+                  <span className="text-gray-300 font-mono truncate ml-2 max-w-[180px]">{fsWallet3 || '—'}</span>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-gray-800">
+                <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1">Set Wallets (wallet1 only)</label>
+                <input type="text" value={fsW1} onChange={e => setFsW1(e.target.value)} placeholder="Wallet 1 address"
+                  className="w-full bg-bg-dark border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:border-accent focus:outline-none" />
+                <input type="text" value={fsW3} onChange={e => setFsW3(e.target.value)} placeholder="Wallet 3 address"
+                  className="w-full bg-bg-dark border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:border-accent focus:outline-none mt-2" />
+              </div>
+              <button onClick={doSetFsWallets}
+                className="w-full py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-green-500 to-emerald-400 text-bg-dark disabled:opacity-30">
+                Set Wallets
+              </button>
+
+              <div className="pt-2 border-t border-gray-800">
+                <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1">Set Shares (PPM, s1+s3 must = 600,000)</label>
+                <input type="number" value={fsS1} onChange={e => setFsS1(e.target.value)} placeholder="Share 1 (e.g. 500000 = 50%)"
+                  className="w-full bg-bg-dark border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:border-accent focus:outline-none" />
+                <input type="number" value={fsS3} onChange={e => setFsS3(e.target.value)} placeholder="Share 3 (e.g. 100000 = 10%)"
+                  className="w-full bg-bg-dark border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:border-accent focus:outline-none mt-2" />
+              </div>
+              <button onClick={doSetFsShares}
+                className="w-full py-2 rounded-lg text-sm font-semibold border border-gray-600 text-gray-300 hover:border-gray-400 disabled:opacity-30">
+                Set Shares
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Deployed Contracts */}
