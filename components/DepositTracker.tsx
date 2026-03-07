@@ -8,6 +8,7 @@ interface Props {
   txHash?: string;
   releaseTxHash?: string;
   sourceChainId?: number;
+  depositBlock?: number;
   error?: string;
   onReset?: () => void;
   confirmations?: number;
@@ -27,7 +28,7 @@ function getStepIndex(status: BridgeStatus): number {
   return -1;
 }
 
-export function DepositTracker({ status, txHash, releaseTxHash, sourceChainId, error, onReset, confirmations, requiredConfirmations }: Props) {
+export function DepositTracker({ status, txHash, releaseTxHash, sourceChainId, depositBlock, error, onReset, confirmations, requiredConfirmations }: Props) {
   if (status === 'idle' || status === 'switching') return null;
 
   const srcChain = sourceChainId || 56;
@@ -134,24 +135,36 @@ export function DepositTracker({ status, txHash, releaseTxHash, sourceChainId, e
       </div>
 
       {txHash && (
-        <div className="mt-3 space-y-1">
-          <a
-            href={explorerTxUrl(txHash, srcChain)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block text-xs text-gray-500 hover:text-accent break-all transition-colors"
-          >
-            Deposit Tx ({explorerLabel(srcChain)}): {txHash}
-          </a>
-          {releaseTxHash && (
+        <div className="mt-4 bg-bg-dark/50 rounded-lg p-3 space-y-2">
+          {depositBlock && (
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-gray-500">Deposit Block</span>
+              <span className="text-xs font-mono text-gray-300">#{depositBlock.toLocaleString()}</span>
+            </div>
+          )}
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-gray-500 shrink-0">Deposit Tx</span>
             <a
-              href={explorerTxUrl(releaseTxHash, destChain)}
+              href={explorerTxUrl(txHash, srcChain)}
               target="_blank"
               rel="noopener noreferrer"
-              className="block text-xs text-green-500 hover:text-green-400 break-all transition-colors"
+              className="text-xs text-gray-400 hover:text-accent truncate font-mono transition-colors"
             >
-              Release Tx ({explorerLabel(destChain)}): {releaseTxHash}
+              {txHash.slice(0, 10)}...{txHash.slice(-8)} ↗
             </a>
+          </div>
+          {releaseTxHash && (
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-gray-500 shrink-0">Release Tx</span>
+              <a
+                href={explorerTxUrl(releaseTxHash, destChain)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-green-400 hover:text-green-300 truncate font-mono transition-colors"
+              >
+                {releaseTxHash.slice(0, 10)}...{releaseTxHash.slice(-8)} ↗
+              </a>
+            </div>
           )}
         </div>
       )}

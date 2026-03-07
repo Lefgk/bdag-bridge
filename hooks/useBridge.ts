@@ -73,6 +73,7 @@ export function useBridge() {
   const [depositNumber, setDepositNumber] = useState<bigint>();
   const [error, setError] = useState<string>();
   const [confirmations, setConfirmations] = useState<number>(0);
+  const [depositBlock, setDepositBlock] = useState<number>();
   const [activeSourceChainId, setActiveSourceChainId] = useState<number>();
   const pollRef = useRef<ReturnType<typeof setInterval>>();
   const confirmPollRef = useRef<ReturnType<typeof setInterval>>();
@@ -274,6 +275,7 @@ export function useBridge() {
     }
 
     const blockNum = Number(receipt.blockNumber);
+    setDepositBlock(blockNum);
     startConfirmationPolling(sourceChainId, blockNum);
 
     const depNum = extractDepositNumber(receipt.logs, contracts.bridgeERC20);
@@ -408,10 +410,11 @@ export function useBridge() {
     setTxHash(undefined);
     setReleaseTxHash(undefined);
     setDepositNumber(undefined);
+    setDepositBlock(undefined);
     setError(undefined);
     setConfirmations(0);
     setActiveSourceChainId(undefined);
   }, []);
 
-  return { bridge, status, txHash, releaseTxHash, depositNumber, error, reset, confirmations, requiredConfirmations, sourceChainId: activeSourceChainId };
+  return { bridge, status, txHash, releaseTxHash, depositNumber, depositBlock, error, reset, confirmations, requiredConfirmations, sourceChainId: activeSourceChainId };
 }
