@@ -6,7 +6,7 @@ import { decodeEventLog, formatUnits, pad } from 'viem';
 import { BRIDGE_ERC20_ABI } from '@/lib/abi';
 import { CONTRACTS } from '@/config/contracts';
 import { BRIDGE_TOKENS } from '@/config/tokens';
-import { BSC_CHAIN_ID, BDAG_CHAIN_ID, getRpc, getDestChainId, rpcCall, getBlockNumber } from '@/config/chainUtils';
+import { BSC_CHAIN_ID, BDAG_CHAIN_ID, getRpc, getDestChainId, rpcCall, getBlockNumber, RELAYER_API } from '@/config/chainUtils';
 
 const BSC_BLOCK_CHUNK = 5000;
 const BSC_BLOCK_RANGE = 50_000;
@@ -61,41 +61,65 @@ async function checkReleased(sourceChainId: number, depositNumber: bigint): Prom
   return result && result !== '0x' + '0'.repeat(64);
 }
 
+// ERC20Released(address indexed token, uint256 indexed amount, address indexed receiver, uint256 depositChainId, uint256 depositNumber)
+const ERC20_RELEASED_TOPIC = '0x6cd20a27d08ca93726a4abae8161aa3ce390af9a7755e6eaceba292199a81d19';
+
 async function findReleaseTxHash(
   sourceChainId: number,
   depositNumber: bigint,
   receiver: string,
+  depositTxHash?: string,
 ): Promise<string | undefined> {
   const destChainId = getDestChainId(sourceChainId);
   const destRpc = getRpc(destChainId);
   const bridge = CONTRACTS[destChainId]?.bridgeERC20;
   if (!bridge) return undefined;
 
+  // Method 1: Search on-chain logs with event signature + receiver filter
   try {
     const receiverTopic = pad(receiver as `0x${string}`, { size: 32 });
     const latestBlock = await getBlockNumber(destRpc);
     const fromBlock = Math.max(0, latestBlock - 50_000);
 
-    const logs = await rpcCall(destRpc, 'eth_getLogs', [{
-      address: bridge,
-      topics: [null, null, null, receiverTopic],
-      fromBlock: '0x' + fromBlock.toString(16),
-      toBlock: '0x' + latestBlock.toString(16),
-    }]);
-
-    for (const log of logs || []) {
+    // Chunk queries to avoid RPC limits (especially BSC)
+    const chunkSize = destChainId === BSC_CHAIN_ID ? 5000 : 50_000;
+    for (let from = fromBlock; from <= latestBlock; from += chunkSize) {
+      const to = Math.min(from + chunkSize - 1, latestBlock);
       try {
-        const decoded = decodeEventLog({ abi: BRIDGE_ERC20_ABI, data: log.data, topics: log.topics });
-        if (decoded.eventName === 'ERC20Released') {
-          const args = decoded.args as any;
-          if (BigInt(args.depositNumber) === depositNumber &&
-              BigInt(args.depositChainId) === BigInt(sourceChainId)) {
-            return log.transactionHash;
-          }
+        const logs = await rpcCall(destRpc, 'eth_getLogs', [{
+          address: bridge,
+          topics: [ERC20_RELEASED_TOPIC, null, null, receiverTopic],
+          fromBlock: '0x' + from.toString(16),
+          toBlock: '0x' + to.toString(16),
+        }]);
+
+        for (const log of logs || []) {
+          try {
+            const decoded = decodeEventLog({ abi: BRIDGE_ERC20_ABI, data: log.data, topics: log.topics });
+            if (decoded.eventName === 'ERC20Released') {
+              const args = decoded.args as any;
+              if (BigInt(args.depositNumber) === depositNumber &&
+                  BigInt(args.depositChainId) === BigInt(sourceChainId)) {
+                return log.transactionHash;
+              }
+            }
+          } catch { /* skip */ }
         }
-      } catch { /* skip */ }
+      } catch { /* skip chunk */ }
     }
   } catch { /* ignore */ }
+
+  // Method 2: Fallback to relayer API if we have the deposit tx hash
+  if (depositTxHash) {
+    try {
+      const res = await fetch(`${RELAYER_API}/check-tx/${depositTxHash}`);
+      const data = await res.json();
+      if (data.releaseTxHash && data.releaseTxHash.startsWith('0x')) {
+        return data.releaseTxHash;
+      }
+    } catch { /* ignore */ }
+  }
+
   return undefined;
 }
 
@@ -206,7 +230,7 @@ export function useBridgeHistory() {
         for (let i = 0; i < releasedDeposits.length; i += releaseBatch) {
           const batch = releasedDeposits.slice(i, i + releaseBatch);
           const hashes = await Promise.all(
-            batch.map(tx => findReleaseTxHash(tx.sourceChainId, tx.depositNumber, address).catch(() => undefined))
+            batch.map(tx => findReleaseTxHash(tx.sourceChainId, tx.depositNumber, address, tx.depositTxHash).catch(() => undefined))
           );
           batch.forEach((tx, idx) => { tx.releaseTxHash = hashes[idx]; });
         }

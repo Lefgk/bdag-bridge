@@ -303,6 +303,7 @@ export function TransactionHistory() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-gray-500 text-xs border-b border-gray-800">
+                  <th className="text-left pb-2 pr-3 font-medium">ID</th>
                   <th className="text-left pb-2 pr-3 font-medium">Date</th>
                   <th className="text-left pb-2 pr-3 font-medium">Direction</th>
                   <th className="text-left pb-2 pr-3 font-medium">Sending Tx</th>
@@ -314,6 +315,7 @@ export function TransactionHistory() {
               <tbody>
                 {filteredTxs.map((tx, i) => (
                   <tr key={`${tx.depositTxHash}-${i}`} className="border-b border-gray-800/50 last:border-0">
+                    <td className="py-2.5 pr-3 text-gray-500 text-xs font-mono whitespace-nowrap">{tx.sourceChainId}_{tx.depositNumber.toString()}</td>
                     <td className="py-2.5 pr-3 text-gray-400 whitespace-nowrap">{formatDate(tx.timestamp)}</td>
                     <td className="py-2.5 pr-3">{directionBadge(tx.sourceChainId, tx.targetChainId)}</td>
                     <td className="py-2.5 pr-3">
