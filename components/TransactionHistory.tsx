@@ -316,6 +316,7 @@ export function TransactionHistory() {
                   <th className="text-left pb-2 pr-3 font-medium">Receiving Tx</th>
                   <th className="text-right pb-2 pr-3 font-medium">Amount</th>
                   <th className="text-right pb-2 font-medium">Status</th>
+                  <th className="text-right pb-2 font-medium"></th>
                 </tr>
               </thead>
               <tbody>
@@ -349,10 +350,21 @@ export function TransactionHistory() {
                       )}
                     </td>
                     <td className="py-2.5 pr-3 text-right text-white whitespace-nowrap">
-                      {parseFloat(tx.amount).toFixed(4)} {tx.tokenSymbol}
+                      {isNaN(parseFloat(tx.amount)) ? '—' : `${parseFloat(tx.amount).toFixed(4)} ${tx.tokenSymbol}`}
                     </td>
                     <td className="py-2.5 text-right">
                       <StatusBadge released={tx.released} />
+                    </td>
+                    <td className="py-2.5 pl-2 text-right">
+                      {!tx.released && tx.depositTxHash && (
+                        <button
+                          onClick={() => handleForceCheck(tx.depositTxHash)}
+                          disabled={forceLoading === tx.depositTxHash}
+                          className="text-[10px] px-2 py-0.5 rounded bg-yellow-500/10 text-yellow-400 border border-yellow-500/30 hover:bg-yellow-500/20 transition-colors disabled:opacity-40 whitespace-nowrap"
+                        >
+                          {forceLoading === tx.depositTxHash ? 'Pinging...' : 'Ping'}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
