@@ -4,6 +4,7 @@ import config from './bridge-config.json';
 export const RELAYER_API = process.env.NEXT_PUBLIC_RELAYER_API || config.relayer.api;
 
 export const BSC_CHAIN_ID = 56;
+export const BLAST_CHAIN_ID = 81457;
 export const BDAG_CHAIN_ID = 1404;
 
 // Build RPC lists from config
@@ -33,6 +34,7 @@ export const RPC: Record<number, string> = Object.fromEntries(
 );
 
 export function getDestChainId(sourceChainId: number): number {
+  // All source chains bridge to BDAG; BDAG bridges back to BSC by default
   return sourceChainId === BDAG_CHAIN_ID ? BSC_CHAIN_ID : BDAG_CHAIN_ID;
 }
 
@@ -54,7 +56,9 @@ export function explorerTxUrl(hash: string, chainId: number): string {
 export function explorerLabel(chainId: number): string {
   const chain = config.chains[String(chainId) as keyof typeof config.chains];
   if (!chain) return 'Explorer';
-  return chain.label === 'BSC' ? 'BSCScan' : `${chain.label}Scan`;
+  if (chain.label === 'BSC') return 'BSCScan';
+  if (chain.label === 'Blast') return 'Blastscan';
+  return `${chain.label}Scan`;
 }
 
 export function getRequiredConfirmations(chainId: number): number {

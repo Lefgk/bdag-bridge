@@ -35,6 +35,14 @@ export function Navbar() {
             >
               Transactions
             </Link>
+            {pathname === '/blast' && (
+              <Link
+                href="/blast"
+                className="px-4 py-2 rounded-lg text-sm bg-card text-[#FCFC03]"
+              >
+                Blast Yield
+              </Link>
+            )}
             {pathname === '/admin' && (
               <Link
                 href="/admin"

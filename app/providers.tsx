@@ -5,14 +5,15 @@ import { WagmiProvider, createConfig, http } from 'wagmi';
 import { bsc } from 'wagmi/chains';
 import { RainbowKitProvider, getDefaultConfig, darkTheme } from '@rainbow-me/rainbowkit';
 import '@rainbow-me/rainbowkit/styles.css';
-import { blockdag } from '@/config/chains';
+import { blockdag, blastChain } from '@/config/chains';
 
 const config = getDefaultConfig({
   appName: 'BlockDAG Bridge',
   projectId: process.env.NEXT_PUBLIC_WC_PROJECT_ID || 'demo',
-  chains: [bsc, blockdag],
+  chains: [bsc, blastChain, blockdag],
   transports: {
     [bsc.id]: http(),
+    [blastChain.id]: http('https://rpc.blast.io'),
     [blockdag.id]: http('https://rpc.bdagscan.com'),
   },
 });

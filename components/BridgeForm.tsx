@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useAccount, useBalance } from 'wagmi';
 import { formatUnits } from 'viem';
 import { TokenSelector } from './TokenSelector';
@@ -16,6 +16,7 @@ const CHAIN_LIST = Object.entries(config.chains).map(([id, chain]) => ({
   id: Number(id),
   label: (chain as any).label as string,
   name: (chain as any).name as string,
+  icon: (chain as any).icon as string | undefined,
 }));
 
 export function BridgeForm() {
@@ -86,6 +87,7 @@ export function BridgeForm() {
 
   const sourceLabel = chainLabel(sourceChainId);
   const targetLabel = chainLabel(targetChainId);
+  const targetIcon = (config.chains[String(targetChainId) as keyof typeof config.chains] as any)?.icon;
 
   return (
     <div className="space-y-4">
@@ -150,7 +152,8 @@ export function BridgeForm() {
         <div className="p-4 pt-5 border-t border-gray-800/50">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs text-gray-500 uppercase tracking-wider">To</span>
-            <span className="text-xs font-semibold text-accent bg-accent/10 border border-accent/30 px-3 py-1 rounded-full">
+            <span className="text-xs font-semibold text-accent bg-accent/10 border border-accent/30 px-3 py-1 rounded-full flex items-center gap-1.5">
+              {targetIcon && <img src={targetIcon} alt="" className="w-4 h-4 rounded-full" />}
               {targetLabel}
             </span>
           </div>
@@ -210,7 +213,17 @@ function ChainPill({
   disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
   const current = chains.find((c) => c.id === chainId);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
 
   // Only 2 chains? Just show a button that swaps
   if (chains.length <= 2) {
@@ -221,12 +234,13 @@ function ChainPill({
           if (other) onChange(other.id);
         }}
         disabled={disabled}
-        className={`text-xs font-semibold px-3 py-1 rounded-full border transition-colors disabled:opacity-50 ${
+        className={`text-xs font-semibold px-3 py-1 rounded-full border transition-colors disabled:opacity-50 flex items-center gap-1.5 ${
           chainId === 56
             ? 'bg-[#F3BA2F]/10 border-[#F3BA2F]/30 text-[#F3BA2F] hover:bg-[#F3BA2F]/20'
             : 'bg-accent/10 border-accent/30 text-accent hover:bg-accent/20'
         }`}
       >
+        {current?.icon && <img src={current.icon} alt="" className="w-4 h-4 rounded-full" />}
         {current?.label || `Chain ${chainId}`}
       </button>
     );
@@ -234,25 +248,27 @@ function ChainPill({
 
   // Multiple chains: dropdown
   return (
-    <div className="relative">
+    <div className="relative" ref={ref}>
       <button
         onClick={() => !disabled && setOpen(!open)}
         disabled={disabled}
-        className="text-xs font-semibold px-3 py-1 rounded-full border transition-colors disabled:opacity-50 bg-accent/10 border-accent/30 text-accent hover:bg-accent/20 flex items-center gap-1"
+        className="text-xs font-semibold px-3 py-1 rounded-full border transition-colors disabled:opacity-50 bg-accent/10 border-accent/30 text-accent hover:bg-accent/20 flex items-center gap-1.5"
       >
+        {current?.icon && <img src={current.icon} alt="" className="w-4 h-4 rounded-full" />}
         {current?.label || `Chain ${chainId}`}
         <span className="text-[10px]">&#9662;</span>
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 bg-card border border-gray-700 rounded-lg shadow-xl z-50 overflow-hidden min-w-[140px]">
+        <div className="absolute right-0 top-full mt-1 bg-card border border-gray-700 rounded-lg shadow-xl z-50 overflow-hidden min-w-[160px]">
           {chains.map((c) => (
             <button
               key={c.id}
               onClick={() => { onChange(c.id); setOpen(false); }}
-              className={`w-full px-4 py-2 text-left text-xs hover:bg-white/5 transition-colors ${
+              className={`w-full px-4 py-2 text-left text-xs hover:bg-white/5 transition-colors flex items-center gap-2 ${
                 c.id === chainId ? 'text-accent bg-accent/10' : 'text-gray-300'
               }`}
             >
+              {c.icon && <img src={c.icon} alt="" className="w-4 h-4 rounded-full" />}
               {c.name}
             </button>
           ))}

@@ -4,6 +4,7 @@
     "56": {
       "name": "BNB Chain",
       "label": "BSC",
+      "icon": "https://icons.llamao.fi/icons/chains/rsz_bsc.jpg",
       "explorer": "https://bscscan.com",
       "rpc": [
         "https://bsc.nownodes.io/e6a7f02b-9b5d-435f-a73e-1e023230b867",
@@ -18,9 +19,25 @@
         "feeSplitter": "0x926b3E0cE457C2031AB1fCDB9ff9b1a7ca10bE02"
       }
     },
+    "81457": {
+      "name": "Blast",
+      "label": "Blast",
+      "icon": "https://icons.llamao.fi/icons/chains/rsz_blast.jpg",
+      "explorer": "https://blastscan.io",
+      "rpc": [
+        "https://rpc.blast.io"
+      ],
+      "confirmations": 10,
+      "contracts": {
+        "router": "0x1D5c8d068a8C2dBdC4bb371effb62870482aeb88",
+        "bridgeERC20": "0x760927a63e76BbE74Dd1721d2ba39340d1278Cca",
+        "liquidityManager": "0x0745DB12c2faab740DA09f69310B5b9604A6FFff"
+      }
+    },
     "1404": {
       "name": "BlockDAG",
       "label": "BDAG",
+      "icon": "https://bdagscan.com/favicon.png",
       "explorer": "https://bdagscan.com",
       "rpc": [
         "https://rpc.bdagscan.com"
@@ -42,6 +59,15 @@
       "icon": "https://assets.coingecko.com/coins/images/325/small/Tether.png",
       "addresses": {
         "56": { "address": "0x55d398326f99059fF775485246999027B3197955", "decimals": 18 },
+        "1404": { "address": "0x62ad37ff9df8e4f4c9f24dc0f0a71fda0b4d75b3", "decimals": 18 }
+      }
+    },
+    {
+      "symbol": "USDB",
+      "name": "USDB",
+      "icon": "https://assets.coingecko.com/coins/images/35495/small/usdb.png",
+      "addresses": {
+        "81457": { "address": "0x4300000000000000000000000000000000000003", "decimals": 18 },
         "1404": { "address": "0x62ad37ff9df8e4f4c9f24dc0f0a71fda0b4d75b3", "decimals": 18 }
       }
     },
@@ -69,6 +95,7 @@
       "icon": "https://assets.coingecko.com/coins/images/279/small/ethereum.png",
       "addresses": {
         "56": { "address": "0x2170Ed0880ac9A755fd29B2688956BD959F933F8", "decimals": 18 },
+        "81457": { "address": "0x4300000000000000000000000000000000000004", "decimals": 18 },
         "1404": { "address": "0xa214b2bb3a880ce0d3b7c1df28b8dbf7b5ccad46", "decimals": 18 }
       }
     }

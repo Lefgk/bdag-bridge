@@ -7,13 +7,19 @@ import { chainLabel, explorerTxUrl, RELAYER_API } from '@/config/chainUtils';
 
 function directionBadge(sourceChainId: number, targetChainId: number) {
   const label = `${chainLabel(sourceChainId)} → ${chainLabel(targetChainId)}`;
-  const isBscToBdag = sourceChainId === 56;
+  const chainColor = sourceChainId === 56 ? '#F3BA2F' : sourceChainId === 81457 ? '#FCFC03' : undefined;
+  if (chainColor) {
+    return (
+      <span
+        className="inline-block px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap border"
+        style={{ backgroundColor: `${chainColor}15`, color: chainColor, borderColor: `${chainColor}30` }}
+      >
+        {label}
+      </span>
+    );
+  }
   return (
-    <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap ${
-      isBscToBdag
-        ? 'bg-[#F3BA2F]/15 text-[#F3BA2F] border border-[#F3BA2F]/30'
-        : 'bg-accent/15 text-accent border border-accent/30'
-    }`}>
+    <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap bg-accent/15 text-accent border border-accent/30">
       {label}
     </span>
   );
