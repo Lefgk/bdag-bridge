@@ -225,14 +225,6 @@ export function FeesPanel() {
     }
   }
 
-  if (!isAdmin) {
-    return (
-      <div className="bg-card rounded-2xl p-8 border border-gray-800 text-center">
-        <p className="text-gray-400">Admin access required.</p>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div className="text-center">
