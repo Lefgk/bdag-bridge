@@ -118,11 +118,11 @@ export function useBridge() {
   const startConfirmationPolling = useCallback((sourceChainId: number, depBlock: number) => {
     if (confirmPollRef.current) clearInterval(confirmPollRef.current);
     setConfirmations(0);
-    const rpc = getRpc(sourceChainId);
     const required = getRequiredConfirmations(sourceChainId);
 
     confirmPollRef.current = setInterval(async () => {
       try {
+        const rpc = getRpc(sourceChainId);
         const hex = await rpcCall(rpc, 'eth_blockNumber', []);
         const currentBlock = parseInt(hex, 16);
         const confs = Math.max(0, currentBlock - depBlock);
@@ -130,17 +130,19 @@ export function useBridge() {
         if (confs >= required) {
           clearInterval(confirmPollRef.current!);
         }
-      } catch { /* ignore */ }
+      } catch {
+        rotateRpc(sourceChainId);
+      }
     }, 3000);
   }, []);
 
   const findReleaseTx = useCallback(async (sourceChainId: number, depNum: bigint, receiverAddr: string) => {
     const destChainId = getDestChainId(sourceChainId);
-    const destRpc = getRpc(destChainId);
     const bridge = CONTRACTS[destChainId]?.bridgeERC20;
     if (!bridge) return;
 
     try {
+      const destRpc = getRpc(destChainId);
       const receiverTopic = pad(receiverAddr as `0x${string}`, { size: 32 });
       const hex = await rpcCall(destRpc, 'eth_blockNumber', []);
       const latestBlock = parseInt(hex, 16);
@@ -165,7 +167,9 @@ export function useBridge() {
           }
         } catch { /* skip */ }
       }
-    } catch { /* ignore */ }
+    } catch {
+      rotateRpc(getDestChainId(sourceChainId));
+    }
   }, []);
 
   // Fallback polling by tx hash when depositNumber can't be extracted
@@ -174,9 +178,14 @@ export function useBridge() {
     let attempts = 0;
     pollRef.current = setInterval(async () => {
       attempts++;
-      if (attempts > 720) { clearInterval(pollRef.current!); return; }
+      if (attempts > 720) {
+        clearInterval(pollRef.current!);
+        setError('Release polling timed out after 60 minutes. Your deposit is safe — check transaction history or try again later.');
+        setStatus('error');
+        return;
+      }
       try {
-        const res = await fetch(`${RELAYER_API}/check-tx/${hash}`);
+        const res = await fetch(`${RELAYER_API}/check-tx/${hash}`, { signal: AbortSignal.timeout(10000) });
         if (!res.ok) return;
         const data = await res.json();
         // API returns: { status: 'already_processed'|'released', releaseTxHash }
@@ -194,7 +203,6 @@ export function useBridge() {
     if (pollRef.current) clearInterval(pollRef.current);
 
     const destChainId = getDestChainId(sourceChainId);
-    const destRpc = getRpc(destChainId);
     const destBridge = CONTRACTS[destChainId]?.bridgeERC20;
     if (!destBridge) return;
 
@@ -202,14 +210,17 @@ export function useBridge() {
     pollRef.current = setInterval(async () => {
       attempts++;
       if (attempts > 720) {
+        // 720 * 5s = 60 minutes — surface error instead of silently dying
         clearInterval(pollRef.current!);
+        setError('Release polling timed out after 60 minutes. Your deposit is safe — check transaction history or try again later.');
+        setStatus('error');
         return;
       }
       try {
         // Try relayer API first (fastest, has the tx hash)
         let released = false;
         try {
-          const apiRes = await fetch(`${RELAYER_API}/deposit/${sourceChainId}/${depNum}`);
+          const apiRes = await fetch(`${RELAYER_API}/deposit/${sourceChainId}/${depNum}`, { signal: AbortSignal.timeout(10000) });
           if (apiRes.ok) {
             const apiData = await apiRes.json();
             if (apiData.processed) {
@@ -224,11 +235,16 @@ export function useBridge() {
 
         // Fallback: check on-chain directly
         if (!released) {
+          const destRpc = getRpc(destChainId);
           const data = '0x047a7fe5' +
             sourceChainId.toString(16).padStart(64, '0') +
             depNum.toString(16).padStart(64, '0');
-          const result = await rpcCall(destRpc, 'eth_call', [{ to: destBridge, data }, 'latest']);
-          released = !!(result && result !== '0x' + '0'.repeat(64));
+          try {
+            const result = await rpcCall(destRpc, 'eth_call', [{ to: destBridge, data }, 'latest']);
+            released = !!(result && result !== '0x' + '0'.repeat(64));
+          } catch {
+            rotateRpc(destChainId);
+          }
         }
 
         if (released) {
@@ -282,7 +298,12 @@ export function useBridge() {
         startPolling(BigInt(saved.depositNumber));
       } else if (saved.txHash && saved.sourceChainId) {
         recoverDepositNumber(saved.txHash, saved.sourceChainId).then(depNum => {
-          if (depNum !== null) startPolling(depNum);
+          if (depNum !== null) {
+            startPolling(depNum);
+          } else {
+            // Can't recover depositNumber — fall back to check-tx polling
+            pollForReleaseByTxHash(saved.txHash!, saved.sourceChainId!);
+          }
         });
       }
     } else if (saved.status === 'released') {
@@ -290,7 +311,7 @@ export function useBridge() {
       if (saved.txHash) setTxHash(saved.txHash);
       if (saved.depositNumber) setDepositNumber(BigInt(saved.depositNumber));
     }
-  }, [address, pollForRelease, recoverDepositNumber]);
+  }, [address, pollForRelease, recoverDepositNumber, pollForReleaseByTxHash]);
 
   const persistState = useCallback((
     newStatus: BridgeStatus,

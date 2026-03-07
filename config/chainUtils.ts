@@ -66,17 +66,24 @@ export function getRequiredConfirmations(chainId: number): number {
   return chain?.confirmations || 15;
 }
 
-// JSON-RPC helper
-export async function rpcCall(rpc: string, method: string, params: any[]): Promise<any> {
-  const res = await fetch(rpc, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ jsonrpc: '2.0', method, params, id: 1 }),
-  });
-  if (!res.ok) throw new Error(`RPC HTTP ${res.status}`);
-  const json = await res.json();
-  if (json.error) throw new Error(json.error.message);
-  return json.result;
+// JSON-RPC helper with timeout
+export async function rpcCall(rpc: string, method: string, params: any[], timeoutMs = 15000): Promise<any> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(rpc, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', method, params, id: 1 }),
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error(`RPC HTTP ${res.status}`);
+    const json = await res.json();
+    if (json.error) throw new Error(json.error.message);
+    return json.result;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export async function getBlockNumber(rpc: string): Promise<number> {
