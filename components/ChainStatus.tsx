@@ -50,8 +50,8 @@ export function ChainStatus() {
           return (
             <span key={c.chainId}>
               {c.name}: {head != null ? `#${head.toLocaleString()}` : '...'}
-              {behind != null && behind > 0 && (
-                <span className={behind > 100 ? 'text-yellow-500' : 'text-gray-600'}> (relayer: -{behind})</span>
+              {behind != null && behind > 1000 && (
+                <span className="text-yellow-500"> (relayer syncing)</span>
               )}
             </span>
           );

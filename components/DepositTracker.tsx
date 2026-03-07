@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import type { BridgeStatus } from '@/hooks/useBridge';
 import { chainName, explorerTxUrl, explorerLabel, getDestChainId } from '@/config/chainUtils';
 
@@ -29,7 +30,18 @@ function getStepIndex(status: BridgeStatus): number {
 }
 
 export function DepositTracker({ status, txHash, releaseTxHash, sourceChainId, depositBlock, error, onReset, confirmations, requiredConfirmations }: Props) {
-  if (status === 'idle' || status === 'switching') return null;
+  const [dismissed, setDismissed] = useState(false);
+
+  // Auto-dismiss 8 seconds after completion
+  useEffect(() => {
+    if (status === 'released') {
+      const timer = setTimeout(() => setDismissed(true), 8000);
+      return () => clearTimeout(timer);
+    }
+    setDismissed(false);
+  }, [status]);
+
+  if (status === 'idle' || status === 'switching' || dismissed) return null;
 
   const srcChain = sourceChainId || 56;
   const destChain = getDestChainId(srcChain);
