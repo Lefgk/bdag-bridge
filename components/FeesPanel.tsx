@@ -9,29 +9,28 @@ import { formatUnits } from 'viem';
 const ERC20_DEPOSITED_TOPIC =
   '0xd6e7f41ecbe30f60a5c6818a6a0e8bc6f14e610e6262c63c6521dda51a8fa907';
 
-const BRIDGE_WITHDRAW_ABI = [
+const BRIDGE_DISTRIBUTE_FEES_ABI = [
   {
     inputs: [
       { name: '_token', type: 'address' },
-      { name: '_amount', type: 'uint256' },
-      { name: '_to', type: 'address' },
     ],
-    name: 'withdrawFees',
+    name: 'distributeFees',
     outputs: [],
     stateMutability: 'nonpayable',
     type: 'function',
   },
 ] as const;
 
-const FEE_SPLITTER_DISTRIBUTE_ABI = [
+const BRIDGE_ACCUMULATED_FEES_ABI = [
   {
     inputs: [
-      { name: 'token', type: 'address' },
-      { name: 'amount', type: 'uint256' },
+      { name: '', type: 'address' },
     ],
-    name: 'distribute',
-    outputs: [],
-    stateMutability: 'nonpayable',
+    name: 'accumulatedFees',
+    outputs: [
+      { name: '', type: 'uint256' },
+    ],
+    stateMutability: 'view',
     type: 'function',
   },
 ] as const;
@@ -184,37 +183,14 @@ export function FeesPanel() {
         await switchChainAsync({ chainId: row.chainId });
       }
 
-      // Use the estimated fees as the amount to withdraw
-      const amount = row.fees;
-
-      if (!row.feeSplitter) {
-        setCollectStatus('Withdrawing fees...');
-        await writeContractAsync({
-          address: row.bridgeAddress as `0x${string}`,
-          abi: BRIDGE_WITHDRAW_ABI,
-          functionName: 'withdrawFees',
-          args: [row.tokenAddress as `0x${string}`, amount, address],
-          ...chainGasOverrides(row.chainId),
-        });
-      } else {
-        setCollectStatus('1/2 Withdraw to splitter...');
-        await writeContractAsync({
-          address: row.bridgeAddress as `0x${string}`,
-          abi: BRIDGE_WITHDRAW_ABI,
-          functionName: 'withdrawFees',
-          args: [row.tokenAddress as `0x${string}`, amount, row.feeSplitter as `0x${string}`],
-          ...chainGasOverrides(row.chainId),
-        });
-
-        setCollectStatus('2/2 Distributing...');
-        await writeContractAsync({
-          address: row.feeSplitter as `0x${string}`,
-          abi: FEE_SPLITTER_DISTRIBUTE_ABI,
-          functionName: 'distribute',
-          args: [row.tokenAddress as `0x${string}`, amount],
-          ...chainGasOverrides(row.chainId),
-        });
-      }
+      setCollectStatus('Distributing fees...');
+      await writeContractAsync({
+        address: row.bridgeAddress as `0x${string}`,
+        abi: BRIDGE_DISTRIBUTE_FEES_ABI,
+        functionName: 'distributeFees',
+        args: [row.tokenAddress as `0x${string}`],
+        ...chainGasOverrides(row.chainId),
+      });
 
       setCollectStatus('Done!');
       setTimeout(() => { setCollectingKey(undefined); setCollectStatus(undefined); refresh(); }, 2000);

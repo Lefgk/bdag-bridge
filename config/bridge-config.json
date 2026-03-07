@@ -13,7 +13,7 @@
       "confirmations": 15,
       "contracts": {
         "router": "0x72da288d754607d15a389118052535a6d263dbdb",
-        "bridgeERC20": "0x46f50bD20c2F08741c5407adeECC3521cEe2Da19",
+        "bridgeERC20": "0xbE0ea9677C910212A5fcDE718b6B18986de9B81c",
         "liquidityManager": "0x086d7ec1806c74e339ef313f46cca5eabc0d0aaf",
         "feeSplitter": "0x926b3E0cE457C2031AB1fCDB9ff9b1a7ca10bE02"
       }
@@ -29,7 +29,7 @@
       "gasPrice": 50000000,
       "contracts": {
         "router": "0x2cfbf23402af68f242452ab0c8a7ce00b9b791e9",
-        "bridgeERC20": "0x80d0b7b3ebdffd04c580b71fa664edfcffc0033c",
+        "bridgeERC20": "0x05a924cabc60c1d2d60e7ed8d523646cf6dd0f81",
         "liquidityManager": "0x761e492086fe858a0585c21d5300ffcea9b71945",
         "multisig": "0x2257fb2b7a874ed21f1cd41e529dab0f964f6ccb"
       }
