@@ -1,6 +1,5 @@
 'use client';
 
-import { useState, useEffect } from 'react';
 import type { BridgeStatus } from '@/hooks/useBridge';
 import { chainName, explorerTxUrl, explorerLabel, getDestChainId } from '@/config/chainUtils';
 
@@ -30,18 +29,7 @@ function getStepIndex(status: BridgeStatus): number {
 }
 
 export function DepositTracker({ status, txHash, releaseTxHash, sourceChainId, depositBlock, error, onReset, confirmations, requiredConfirmations }: Props) {
-  const [dismissed, setDismissed] = useState(false);
-
-  // Auto-dismiss 8 seconds after completion
-  useEffect(() => {
-    if (status === 'released') {
-      const timer = setTimeout(() => setDismissed(true), 8000);
-      return () => clearTimeout(timer);
-    }
-    setDismissed(false);
-  }, [status]);
-
-  if (status === 'idle' || status === 'switching' || dismissed) return null;
+  if (status === 'idle' || status === 'switching') return null;
 
   const srcChain = sourceChainId || 56;
   const destChain = getDestChainId(srcChain);
@@ -71,11 +59,10 @@ export function DepositTracker({ status, txHash, releaseTxHash, sourceChainId, d
         {onReset && (
           <button
             onClick={onReset}
-            className={`text-xs px-3 py-1 rounded-lg border transition-colors ${
-              isComplete || isError
+            className={`text-xs px-3 py-1 rounded-lg border transition-colors ${isComplete || isError
                 ? 'bg-accent/10 text-accent border-accent/30 hover:bg-accent/20'
                 : 'bg-gray-800 text-gray-400 border-gray-600 hover:text-gray-300 hover:border-gray-500'
-            }`}
+              }`}
           >
             {isComplete || isError ? 'Bridge Again' : 'Cancel'}
           </button>
@@ -90,7 +77,7 @@ export function DepositTracker({ status, txHash, releaseTxHash, sourceChainId, d
 
       {status === 'waiting_relayer' && (
         <div className="mb-4 p-3 rounded-lg bg-accent/10 border border-accent/30">
-          <p className="text-accent text-sm">Deposit confirmed on {srcName}. Waiting for relayer to release on {destName}...</p>
+          <p className="text-accent text-sm">Deposit confirmed on {srcName}. Waiting for release on {destName}...</p>
           <p className="text-gray-500 text-xs mt-1">This usually takes 30-60 seconds.</p>
         </div>
       )}
@@ -116,18 +103,16 @@ export function DepositTracker({ status, txHash, releaseTxHash, sourceChainId, d
           return (
             <div key={i}>
               <div className="flex items-center gap-3">
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs border shrink-0 ${
-                  state === 'done' ? 'bg-green-500/20 border-green-500 text-green-400' :
-                  state === 'active' ? 'bg-accent/20 border-accent text-accent animate-pulse' :
-                  'border-gray-600 text-gray-500'
-                }`}>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs border shrink-0 ${state === 'done' ? 'bg-green-500/20 border-green-500 text-green-400' :
+                    state === 'active' ? 'bg-accent/20 border-accent text-accent animate-pulse' :
+                      'border-gray-600 text-gray-500'
+                  }`}>
                   {state === 'done' ? '\u2713' : i + 1}
                 </div>
-                <span className={`text-sm ${
-                  state === 'done' ? 'text-green-400' :
-                  state === 'active' ? 'text-accent' :
-                  'text-gray-500'
-                }`}>
+                <span className={`text-sm ${state === 'done' ? 'text-green-400' :
+                    state === 'active' ? 'text-accent' :
+                      'text-gray-500'
+                  }`}>
                   {label}
                 </span>
               </div>
@@ -165,7 +150,7 @@ export function DepositTracker({ status, txHash, releaseTxHash, sourceChainId, d
               {txHash.slice(0, 10)}...{txHash.slice(-8)} ↗
             </a>
           </div>
-          {releaseTxHash && (
+          {isComplete && releaseTxHash && (
             <div className="flex items-center justify-between gap-2">
               <span className="text-xs text-gray-500 shrink-0">Release Tx</span>
               <a

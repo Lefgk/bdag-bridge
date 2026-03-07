@@ -38,6 +38,15 @@ export function getDestChainId(sourceChainId: number): number {
   return sourceChainId === BDAG_CHAIN_ID ? BSC_CHAIN_ID : BDAG_CHAIN_ID;
 }
 
+/** Get all possible destination chains for a given source */
+export function getDestChains(sourceChainId: number): number[] {
+  if (sourceChainId === BDAG_CHAIN_ID) {
+    // BDAG can bridge to any non-BDAG chain
+    return Object.keys(config.chains).map(Number).filter(id => id !== BDAG_CHAIN_ID);
+  }
+  return [BDAG_CHAIN_ID];
+}
+
 export function chainName(chainId: number): string {
   const chain = config.chains[String(chainId) as keyof typeof config.chains];
   return chain?.name || `Chain ${chainId}`;

@@ -22,9 +22,9 @@ export const BRIDGE_TOKENS: Token[] = config.tokens.map(t => ({
   ),
 }));
 
-export function getTokensForChain(chainId: number): Token[] {
-  const destChainId = getDestChainId(chainId);
-  return BRIDGE_TOKENS.filter(t => t.addresses[chainId] && t.addresses[destChainId]);
+export function getTokensForChain(chainId: number, destChainId?: number): Token[] {
+  const dest = destChainId ?? getDestChainId(chainId);
+  return BRIDGE_TOKENS.filter(t => t.addresses[chainId] && t.addresses[dest]);
 }
 
 export function getDecimals(token: Token, chainId: number): number {

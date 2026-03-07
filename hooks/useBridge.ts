@@ -374,11 +374,12 @@ export function useBridge() {
     token: Token,
     amount: string,
     receiver?: string,
+    destChainId?: number,
   ) => {
     if (!address) return;
     setError(undefined);
     const to = (receiver || address) as `0x${string}`;
-    const targetChainId = getDestChainId(sourceChainId);
+    const targetChainId = destChainId || getDestChainId(sourceChainId);
     setActiveSourceChainId(sourceChainId);
     const contracts = CONTRACTS[sourceChainId];
     if (!contracts) {

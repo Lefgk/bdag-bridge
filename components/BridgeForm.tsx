@@ -10,7 +10,7 @@ import { useBridge } from '@/hooks/useBridge';
 import { ROUTER_ABI } from '@/lib/abi';
 import { CONTRACTS } from '@/config/contracts';
 import { getTokensForChain, Token, getDecimals } from '@/config/tokens';
-import { getDestChainId, chainLabel } from '@/config/chainUtils';
+import { getDestChainId, getDestChains, chainLabel, BDAG_CHAIN_ID } from '@/config/chainUtils';
 import config from '@/config/bridge-config.json';
 
 // Build chain list from config for the chain selector
@@ -24,13 +24,17 @@ const CHAIN_LIST = Object.entries(config.chains).map(([id, chain]) => ({
 export function BridgeForm() {
   const { address, isConnected } = useAccount();
   const [sourceChainId, setSourceChainId] = useState(CHAIN_LIST[0].id);
+  const [targetChainIdOverride, setTargetChainIdOverride] = useState<number | null>(null);
   const [token, setToken] = useState<Token | null>(null);
   const [amount, setAmount] = useState('');
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
-  const targetChainId = getDestChainId(sourceChainId);
-  const tokens = useMemo(() => getTokensForChain(sourceChainId), [sourceChainId]);
+  const destChains = useMemo(() => getDestChains(sourceChainId), [sourceChainId]);
+  const targetChainId = targetChainIdOverride && destChains.includes(targetChainIdOverride)
+    ? targetChainIdOverride
+    : destChains[0];
+  const tokens = useMemo(() => getTokensForChain(sourceChainId, targetChainId), [sourceChainId, targetChainId]);
   const { bridge, status, txHash, releaseTxHash, depositBlock, error, reset, confirmations, requiredConfirmations, sourceChainId: bridgeSourceChainId } = useBridge();
 
   const tokenAddr = token && !token.isNative ? token.addresses[sourceChainId] : undefined;
@@ -43,6 +47,7 @@ export function BridgeForm() {
 
   const handleSwapDirection = () => {
     setSourceChainId(targetChainId);
+    setTargetChainIdOverride(sourceChainId);
     setToken(null);
     setAmount('');
     reset();
@@ -51,9 +56,17 @@ export function BridgeForm() {
   const handleSourceChange = (newSourceId: number) => {
     if (newSourceId === sourceChainId) return;
     setSourceChainId(newSourceId);
+    setTargetChainIdOverride(null);
     setToken(null);
     setAmount('');
     reset();
+  };
+
+  const handleTargetChange = (newTargetId: number) => {
+    if (newTargetId === targetChainId) return;
+    setTargetChainIdOverride(newTargetId);
+    setToken(null);
+    setAmount('');
   };
 
   const handleReset = () => {
@@ -92,7 +105,7 @@ export function BridgeForm() {
   const handleBridge = () => {
     if (!token || !amount || bridgingRef.current) return;
     bridgingRef.current = true;
-    bridge(sourceChainId, token, amount).finally(() => { bridgingRef.current = false; });
+    bridge(sourceChainId, token, amount, undefined, targetChainId).finally(() => { bridgingRef.current = false; });
   };
 
   const receiveSymbol = token?.symbol || '';
@@ -178,10 +191,19 @@ export function BridgeForm() {
         <div className="p-4 pt-5 border-t border-gray-800/50">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs text-gray-500 uppercase tracking-wider">To</span>
-            <span className="text-xs font-semibold text-accent bg-accent/10 border border-accent/30 px-3 py-1 rounded-full flex items-center gap-1.5">
-              {targetIcon && <img src={targetIcon} alt="" className="w-4 h-4 rounded-full" />}
-              {targetLabel}
-            </span>
+            {destChains.length > 1 ? (
+              <ChainPill
+                chainId={targetChainId}
+                chains={CHAIN_LIST.filter(c => destChains.includes(c.id))}
+                onChange={handleTargetChange}
+                disabled={isActive}
+              />
+            ) : (
+              <span className="text-xs font-semibold text-accent bg-accent/10 border border-accent/30 px-3 py-1 rounded-full flex items-center gap-1.5">
+                {targetIcon && <img src={targetIcon} alt="" className="w-4 h-4 rounded-full" />}
+                {targetLabel}
+              </span>
+            )}
           </div>
           <div className="bg-bg-dark rounded-xl border border-gray-700/50 px-4 py-3">
             <div className="flex items-center justify-between">
