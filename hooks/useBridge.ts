@@ -256,8 +256,9 @@ export function useBridge() {
     } catch { return null; }
   }, []);
 
-  // Restore state from localStorage on mount
+  // Restore state from localStorage on mount or when wallet connects
   useEffect(() => {
+    if (!address) return; // Don't restore until wallet is connected
     if (restoredRef.current) return;
     restoredRef.current = true;
 
@@ -289,7 +290,7 @@ export function useBridge() {
       if (saved.txHash) setTxHash(saved.txHash);
       if (saved.depositNumber) setDepositNumber(BigInt(saved.depositNumber));
     }
-  }, [pollForRelease, recoverDepositNumber]);
+  }, [address, pollForRelease, recoverDepositNumber]);
 
   const persistState = useCallback((
     newStatus: BridgeStatus,

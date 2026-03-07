@@ -1,13 +1,15 @@
 'use client';
 
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { useAccount, useBalance } from 'wagmi';
-import { formatUnits } from 'viem';
+import { useAccount, useBalance, useReadContract } from 'wagmi';
+import { formatUnits, parseUnits } from 'viem';
 import { TokenSelector } from './TokenSelector';
 import { DepositTracker } from './DepositTracker';
 import { ChainStatus } from './ChainStatus';
 import { useBridge } from '@/hooks/useBridge';
-import { getTokensForChain, Token } from '@/config/tokens';
+import { ROUTER_ABI } from '@/lib/abi';
+import { CONTRACTS } from '@/config/contracts';
+import { getTokensForChain, Token, getDecimals } from '@/config/tokens';
 import { getDestChainId, chainLabel } from '@/config/chainUtils';
 import config from '@/config/bridge-config.json';
 
@@ -59,16 +61,38 @@ export function BridgeForm() {
     reset();
   };
 
-  const feeNum = amount ? parseFloat(amount) * 0.006 : 0;
-  const receiveNum = amount ? parseFloat(amount) * 0.994 : 0;
+  // Fetch on-chain fee quote
+  const amountParsed = useMemo(() => {
+    if (!token || !amount || parseFloat(amount) <= 0) return undefined;
+    try { return parseUnits(amount, getDecimals(token, sourceChainId)); } catch { return undefined; }
+  }, [token, amount, sourceChainId]);
+  const feeTokenAddr = token && !token.isNative ? token.addresses[sourceChainId] : undefined;
+  const routerAddr = CONTRACTS[sourceChainId]?.router;
+  const { data: onChainFee } = useReadContract({
+    address: routerAddr,
+    abi: ROUTER_ABI,
+    functionName: 'getERC20BridgeFeeQuote',
+    args: feeTokenAddr && amountParsed ? [feeTokenAddr as `0x${string}`, amountParsed] : undefined,
+    chainId: sourceChainId,
+    query: { enabled: !!feeTokenAddr && !!amountParsed },
+  });
+
+  const decimals = token ? getDecimals(token, sourceChainId) : 18;
+  const feeNum = onChainFee ? parseFloat(formatUnits(onChainFee as bigint, decimals)) : (amount ? parseFloat(amount) * 0.006 : 0);
+  const receiveNum = amount ? parseFloat(amount) - feeNum : 0;
   const precision = feeNum > 0 && feeNum < 0.000001 ? 10 : feeNum < 0.01 ? 8 : 6;
   const fee = feeNum.toFixed(precision);
-  const receive = receiveNum.toFixed(precision);
+  const receive = receiveNum > 0 ? receiveNum.toFixed(precision) : '0';
+  const feePercent = onChainFee && amount && parseFloat(amount) > 0
+    ? ((feeNum / parseFloat(amount)) * 100).toFixed(1)
+    : '0.6';
   const isActive = status !== 'idle' && status !== 'released' && status !== 'error';
 
+  const bridgingRef = useRef(false);
   const handleBridge = () => {
-    if (!token || !amount) return;
-    bridge(sourceChainId, token, amount);
+    if (!token || !amount || bridgingRef.current) return;
+    bridgingRef.current = true;
+    bridge(sourceChainId, token, amount).finally(() => { bridgingRef.current = false; });
   };
 
   const receiveSymbol = token?.symbol || '';
@@ -175,7 +199,7 @@ export function BridgeForm() {
         {amount && parseFloat(amount) > 0 && (
           <div className="px-4 pb-3">
             <div className="flex justify-between text-xs text-gray-500">
-              <span>Fee (0.6%)</span>
+              <span>Fee ({feePercent}%)</span>
               <span className="font-mono">{fee} {token?.symbol}</span>
             </div>
           </div>

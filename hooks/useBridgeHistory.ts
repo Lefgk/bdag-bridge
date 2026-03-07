@@ -89,7 +89,7 @@ export function useBridgeHistory() {
           tokenSymbol,
           amount,
           depositNumber,
-          timestamp: d.created_at ? d.created_at * 1000 : undefined,
+          timestamp: d.created_at || undefined,
           released,
         });
       }
