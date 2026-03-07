@@ -26,16 +26,6 @@ export function Navbar() {
               Bridge
             </Link>
             <Link
-              href="/liquidity"
-              className={`px-4 py-2 rounded-lg text-sm transition-colors ${
-                pathname === '/liquidity'
-                  ? 'bg-card text-accent'
-                  : 'text-gray-400 hover:text-gray-200'
-              }`}
-            >
-              Liquidity
-            </Link>
-            <Link
               href="/transactions"
               className={`px-4 py-2 rounded-lg text-sm transition-colors ${
                 pathname === '/transactions'

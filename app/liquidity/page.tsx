@@ -1,5 +1,5 @@
-import { LiquidityPanel } from '@/components/LiquidityPanel';
+import { redirect } from 'next/navigation';
 
 export default function LiquidityPage() {
-  return <LiquidityPanel />;
+  redirect('/');
 }
