@@ -1,0 +1,80 @@
+{
+  "version": "0.3.1",
+  "chains": {
+    "56": {
+      "name": "BNB Chain",
+      "label": "BSC",
+      "explorer": "https://bscscan.com",
+      "rpc": [
+        "https://bsc-rpc.publicnode.com",
+        "https://bnb-mainnet.g.alchemy.com/v2/u8XmfIEpe-HMRFRgUGSRc7k2WeT2SeS6"
+      ],
+      "confirmations": 15,
+      "contracts": {
+        "router": "0x72da288d754607d15a389118052535a6d263dbdb",
+        "bridgeERC20": "0x46f50bD20c2F08741c5407adeECC3521cEe2Da19",
+        "liquidityManager": "0x086d7ec1806c74e339ef313f46cca5eabc0d0aaf",
+        "feeSplitter": "0x926b3E0cE457C2031AB1fCDB9ff9b1a7ca10bE02"
+      }
+    },
+    "1404": {
+      "name": "BlockDAG",
+      "label": "BDAG",
+      "explorer": "https://bdagscan.com",
+      "rpc": [
+        "https://rpc.bdagscan.com"
+      ],
+      "confirmations": 2,
+      "gasPrice": 50000000,
+      "contracts": {
+        "router": "0x2cfbf23402af68f242452ab0c8a7ce00b9b791e9",
+        "bridgeERC20": "0x80d0b7b3ebdffd04c580b71fa664edfcffc0033c",
+        "liquidityManager": "0x761e492086fe858a0585c21d5300ffcea9b71945",
+        "multisig": "0x2257fb2b7a874ed21f1cd41e529dab0f964f6ccb"
+      }
+    }
+  },
+  "tokens": [
+    {
+      "symbol": "USDT",
+      "name": "Tether USD",
+      "icon": "https://assets.coingecko.com/coins/images/325/small/Tether.png",
+      "addresses": {
+        "56": { "address": "0x55d398326f99059fF775485246999027B3197955", "decimals": 18 },
+        "1404": { "address": "0x62ad37ff9df8e4f4c9f24dc0f0a71fda0b4d75b3", "decimals": 18 }
+      }
+    },
+    {
+      "symbol": "USDC",
+      "name": "USD Coin",
+      "icon": "https://assets.coingecko.com/coins/images/6319/small/usdc.png",
+      "addresses": {
+        "56": { "address": "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d", "decimals": 18 },
+        "1404": { "address": "0x28eb6f3ac1ea2daf488a955179ab037c5dd9e661", "decimals": 18 }
+      }
+    },
+    {
+      "symbol": "WBNB",
+      "name": "Wrapped BNB",
+      "icon": "https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png",
+      "addresses": {
+        "56": { "address": "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c", "decimals": 18 },
+        "1404": { "address": "0x8707cacb12a6826e00c81a60fbb37cc7f24235bb", "decimals": 18 }
+      }
+    },
+    {
+      "symbol": "WETH",
+      "name": "Wrapped ETH",
+      "icon": "https://assets.coingecko.com/coins/images/279/small/ethereum.png",
+      "addresses": {
+        "56": { "address": "0x2170Ed0880ac9A755fd29B2688956BD959F933F8", "decimals": 18 },
+        "1404": { "address": "0xa214b2bb3a880ce0d3b7c1df28b8dbf7b5ccad46", "decimals": 18 }
+      }
+    }
+  ],
+  "relayer": {
+    "address": "0x239B5882E1bF75596632700b94439b87C804213a",
+    "api": "https://town-weblog-enlargement-persian.trycloudflare.com"
+  },
+  "admin": "0xD0D3D4E5c6604Bf032412A79f8A178782b54B88b"
+}

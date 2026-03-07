@@ -6,16 +6,19 @@ import { parseUnits, maxUint256, decodeEventLog, pad } from 'viem';
 import { ROUTER_ABI, BRIDGE_ERC20_ABI, ERC20_ABI } from '@/lib/abi';
 import { CONTRACTS } from '@/config/contracts';
 import { Token, getDecimals } from '@/config/tokens';
-import { getRpc, getDestChainId, rpcCall, getRequiredConfirmations, RELAYER_API, rotateRpc } from '@/config/chainUtils';
+import { getRpc, getDestChainId, rpcCall, getRequiredConfirmations, RELAYER_API, rotateRpc, BDAG_CHAIN_ID } from '@/config/chainUtils';
+import bridgeConfig from '@/config/bridge-config.json';
 
 export type BridgeStatus = 'idle' | 'switching' | 'approving' | 'depositing' | 'confirming' | 'waiting_relayer' | 'released' | 'error';
 
 const STORAGE_KEY = 'bdag_bridge_state';
-const BDAG_CHAIN_ID = 1404;
-const BDAG_GAS_PRICE = 50000000n;
 
-function bdagGasOverrides(chainId: number) {
-  return chainId === BDAG_CHAIN_ID ? { gasPrice: BDAG_GAS_PRICE } : {};
+function chainGasOverrides(chainId: number) {
+  const chain = bridgeConfig.chains[String(chainId) as keyof typeof bridgeConfig.chains];
+  if (chain && 'gasPrice' in chain && chain.gasPrice) {
+    return { gasPrice: BigInt(chain.gasPrice) };
+  }
+  return {};
 }
 
 interface PersistedBridgeState {
@@ -342,7 +345,7 @@ export function useBridge() {
           functionName: 'depositNativeTokensToBridge',
           args: [amountParsed, to, BigInt(targetChainId)],
           value: amountParsed,
-          ...bdagGasOverrides(sourceChainId),
+          ...chainGasOverrides(sourceChainId),
         });
         setTxHash(hash);
         setStatus('confirming');
@@ -378,7 +381,7 @@ export function useBridge() {
             abi: ERC20_ABI,
             functionName: 'approve',
             args: [contracts.router, maxUint256],
-            ...bdagGasOverrides(sourceChainId),
+            ...chainGasOverrides(sourceChainId),
           });
           const approveReceipt = await waitForReceipt(sourceChainId, approveHash);
           if (approveReceipt.status !== 'success') {
@@ -394,7 +397,7 @@ export function useBridge() {
           abi: ROUTER_ABI,
           functionName: 'depositERC20TokensToBridge',
           args: [tokenAddr, amountParsed, to, BigInt(targetChainId)],
-          ...bdagGasOverrides(sourceChainId),
+          ...chainGasOverrides(sourceChainId),
         });
         setTxHash(hash);
         setStatus('confirming');

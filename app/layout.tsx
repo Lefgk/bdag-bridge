@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Providers } from './providers';
 import { Navbar } from '@/components/Navbar';
+import bridgeConfig from '@/config/bridge-config.json';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -18,7 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {children}
           </main>
           <div className="fixed bottom-2 right-3 text-[10px] text-gray-600">
-            v0.3.0
+            v{bridgeConfig.version}
           </div>
         </Providers>
       </body>

@@ -1,21 +1,15 @@
-// Centralized chain configuration — single source of truth for RPCs, names, explorers
+import config from './bridge-config.json';
 
-// Relayer API (runs on the bridge-relayer EC2 instance)
-export const RELAYER_API = process.env.NEXT_PUBLIC_RELAYER_API || 'https://town-weblog-enlargement-persian.trycloudflare.com';
+// Relayer API
+export const RELAYER_API = process.env.NEXT_PUBLIC_RELAYER_API || config.relayer.api;
 
 export const BSC_CHAIN_ID = 56;
 export const BDAG_CHAIN_ID = 1404;
 
-// Multiple RPCs per chain for rotation / fallback
-const RPC_LIST: Record<number, string[]> = {
-  [BSC_CHAIN_ID]: [
-    'https://bsc-rpc.publicnode.com',
-    'https://bnb-mainnet.g.alchemy.com/v2/u8XmfIEpe-HMRFRgUGSRc7k2WeT2SeS6',
-  ],
-  [BDAG_CHAIN_ID]: [
-    'https://rpc.bdagscan.com',
-  ],
-};
+// Build RPC lists from config
+const RPC_LIST: Record<number, string[]> = Object.fromEntries(
+  Object.entries(config.chains).map(([chainId, chain]) => [Number(chainId), chain.rpc])
+);
 
 const rpcIndex: Record<number, number> = {};
 
@@ -34,43 +28,38 @@ export function rotateRpc(chainId: number): string {
 }
 
 // Keep backward compat
-export const RPC: Record<number, string> = {
-  [BSC_CHAIN_ID]: RPC_LIST[BSC_CHAIN_ID][0],
-  [BDAG_CHAIN_ID]: RPC_LIST[BDAG_CHAIN_ID][0],
-};
+export const RPC: Record<number, string> = Object.fromEntries(
+  Object.entries(RPC_LIST).map(([chainId, list]) => [Number(chainId), list[0]])
+);
 
 export function getDestChainId(sourceChainId: number): number {
   return sourceChainId === BDAG_CHAIN_ID ? BSC_CHAIN_ID : BDAG_CHAIN_ID;
 }
 
 export function chainName(chainId: number): string {
-  if (chainId === BSC_CHAIN_ID) return 'BNB Chain';
-  if (chainId === BDAG_CHAIN_ID) return 'BlockDAG';
-  return `Chain ${chainId}`;
+  const chain = config.chains[String(chainId) as keyof typeof config.chains];
+  return chain?.name || `Chain ${chainId}`;
 }
 
 export function chainLabel(chainId: number): string {
-  if (chainId === BSC_CHAIN_ID) return 'BSC';
-  if (chainId === BDAG_CHAIN_ID) return 'BDAG';
-  return String(chainId);
+  const chain = config.chains[String(chainId) as keyof typeof config.chains];
+  return chain?.label || String(chainId);
 }
 
 export function explorerTxUrl(hash: string, chainId: number): string {
-  if (chainId === BSC_CHAIN_ID) return `https://bscscan.com/tx/${hash}`;
-  if (chainId === BDAG_CHAIN_ID) return `https://bdagscan.com/tx/${hash}`;
-  return '#';
+  const chain = config.chains[String(chainId) as keyof typeof config.chains];
+  return chain ? `${chain.explorer}/tx/${hash}` : '#';
 }
 
 export function explorerLabel(chainId: number): string {
-  if (chainId === BSC_CHAIN_ID) return 'BSCScan';
-  if (chainId === BDAG_CHAIN_ID) return 'BDAGScan';
-  return 'Explorer';
+  const chain = config.chains[String(chainId) as keyof typeof config.chains];
+  if (!chain) return 'Explorer';
+  return chain.label === 'BSC' ? 'BSCScan' : `${chain.label}Scan`;
 }
 
-// Required confirmations per chain before relayer picks up
 export function getRequiredConfirmations(chainId: number): number {
-  if (chainId === BDAG_CHAIN_ID) return 2;
-  return 15; // BSC
+  const chain = config.chains[String(chainId) as keyof typeof config.chains];
+  return chain?.confirmations || 15;
 }
 
 // JSON-RPC helper
