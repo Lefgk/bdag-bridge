@@ -6,6 +6,7 @@
       "label": "BSC",
       "explorer": "https://bscscan.com",
       "rpc": [
+        "https://bsc.nownodes.io/e6a7f02b-9b5d-435f-a73e-1e023230b867",
         "https://bsc-rpc.publicnode.com",
         "https://bnb-mainnet.g.alchemy.com/v2/u8XmfIEpe-HMRFRgUGSRc7k2WeT2SeS6"
       ],
