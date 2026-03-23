@@ -1,6 +1,6 @@
 'use client';
 
-import { SOURCE_CHAINS } from '@/config/chains';
+import { SUPPORTED_CHAINS } from '@/config/chains';
 import config from '@/config/bridge-config.json';
 
 interface Props {
@@ -14,8 +14,8 @@ function getChainIcon(chainId: number): string | undefined {
 
 export function ChainSelector({ selectedChainId, onSelect }: Props) {
   return (
-    <div className="flex gap-2">
-      {SOURCE_CHAINS.map((chain) => (
+    <div className="flex gap-2 flex-wrap">
+      {SUPPORTED_CHAINS.map((chain) => (
         <button
           key={chain.id}
           onClick={() => onSelect(chain.id)}

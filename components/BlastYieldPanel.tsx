@@ -3,35 +3,43 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAccount, useWriteContract, useSwitchChain } from 'wagmi';
 import config from '@/config/bridge-config.json';
-import { getRpc, rpcCall } from '@/config/chainUtils';
+import { getRpc, rpcCall, isPlaceholderAddress } from '@/config/chainUtils';
 import { formatUnits } from 'viem';
 
 const BLAST_CHAIN_ID = 81457;
+
 const BLAST_BRIDGE_ABI = [
   {
-    inputs: [],
-    name: 'claimETHYield',
+    inputs: [{ name: 'amount', type: 'uint256' }],
+    name: 'claimBlastETHYield',
     outputs: [{ name: '', type: 'uint256' }],
     stateMutability: 'nonpayable',
     type: 'function',
   },
   {
     inputs: [],
-    name: 'claimGas',
+    name: 'claimBlastGas',
     outputs: [{ name: '', type: 'uint256' }],
     stateMutability: 'nonpayable',
     type: 'function',
   },
   {
-    inputs: [{ name: '_amount', type: 'uint256' }],
-    name: 'claimWETHYield',
+    inputs: [],
+    name: 'claimBlastGasMax',
     outputs: [{ name: '', type: 'uint256' }],
     stateMutability: 'nonpayable',
     type: 'function',
   },
   {
-    inputs: [{ name: '_amount', type: 'uint256' }],
-    name: 'claimUSDBYield',
+    inputs: [{ name: 'amount', type: 'uint256' }],
+    name: 'claimBlastWETHYield',
+    outputs: [{ name: '', type: 'uint256' }],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [{ name: 'amount', type: 'uint256' }],
+    name: 'claimBlastUSDBYield',
     outputs: [{ name: '', type: 'uint256' }],
     stateMutability: 'nonpayable',
     type: 'function',
@@ -48,16 +56,13 @@ function fmt(wei: bigint, decimals = 18): string {
 
 function getBlastBridgeAddress(): `0x${string}` {
   const chain = config.chains['81457' as keyof typeof config.chains];
-  return (chain?.contracts?.bridgeERC20 || '0x0000000000000000000000000000000000000000') as `0x${string}`;
+  return (chain?.contracts?.bridge || '0x0000000000000000000000000000000000000000') as `0x${string}`;
 }
 
 interface YieldData {
   ethYield: bigint;
-  gasBalance: bigint;
-  gasEtherSeconds: bigint;
-  gasLastUpdated: bigint;
-  wethYield: bigint;
   usdbYield: bigint;
+  wethYield: bigint;
 }
 
 export function BlastYieldPanel() {
@@ -72,7 +77,7 @@ export function BlastYieldPanel() {
 
   const isAdmin = address?.toLowerCase() === config.admin.toLowerCase();
   const bridgeAddress = getBlastBridgeAddress();
-  const isPlaceholder = bridgeAddress === '0x0000000000000000000000000000000000000000';
+  const isPlaceholder = isPlaceholderAddress(bridgeAddress);
 
   const refresh = useCallback(async () => {
     if (isPlaceholder) {
@@ -84,34 +89,29 @@ export function BlastYieldPanel() {
     const rpc = getRpc(BLAST_CHAIN_ID);
 
     try {
-      const selectors = {
-        getClaimableETHYield: '0x3c40594d',
-        getClaimableWETHYield: '0x54261341',
-        getClaimableUSDBYield: '0xf2adb344',
-        getClaimableGas: '0x8db2a3d3',
-      };
+      // getClaimableYields() returns (uint256 eth, uint256 usdb, uint256 weth)
+      const selector = '0x3c40594d'; // getClaimableYields()
+      const result = await rpcCall(rpc, 'eth_call', [{ to: bridgeAddress, data: selector }, 'latest']).catch(() => null);
 
-      const [ethRes, wethRes, usdbRes, gasRes] = await Promise.all([
-        rpcCall(rpc, 'eth_call', [{ to: bridgeAddress, data: selectors.getClaimableETHYield }, 'latest']).catch(() => '0x0'),
-        rpcCall(rpc, 'eth_call', [{ to: bridgeAddress, data: selectors.getClaimableWETHYield }, 'latest']).catch(() => '0x0'),
-        rpcCall(rpc, 'eth_call', [{ to: bridgeAddress, data: selectors.getClaimableUSDBYield }, 'latest']).catch(() => '0x0'),
-        rpcCall(rpc, 'eth_call', [{ to: bridgeAddress, data: selectors.getClaimableGas }, 'latest']).catch(() => '0x' + '0'.repeat(256)),
-      ]);
+      if (result && result.length >= 194) {
+        const hex = result.slice(2);
+        const ethYield = BigInt('0x' + hex.slice(0, 64));
+        const usdbYield = BigInt('0x' + hex.slice(64, 128));
+        const wethYield = BigInt('0x' + hex.slice(128, 192));
+        setData({ ethYield, usdbYield, wethYield });
+      } else {
+        // Fallback: try individual selectors
+        const [ethRes, wethRes, usdbRes] = await Promise.all([
+          rpcCall(rpc, 'eth_call', [{ to: bridgeAddress, data: '0x3c40594d' }, 'latest']).catch(() => '0x0'),
+          rpcCall(rpc, 'eth_call', [{ to: bridgeAddress, data: '0x54261341' }, 'latest']).catch(() => '0x0'),
+          rpcCall(rpc, 'eth_call', [{ to: bridgeAddress, data: '0xf2adb344' }, 'latest']).catch(() => '0x0'),
+        ]);
 
-      const ethYield = ethRes && ethRes !== '0x' ? BigInt(ethRes) : 0n;
-      const wethYield = wethRes && wethRes !== '0x' ? BigInt(wethRes) : 0n;
-      const usdbYield = usdbRes && usdbRes !== '0x' ? BigInt(usdbRes) : 0n;
-
-      // getClaimableGas returns (uint256, uint256, uint256, uint8)
-      let gasEtherSeconds = 0n, gasBalance = 0n, gasLastUpdated = 0n;
-      if (gasRes && gasRes.length >= 258) {
-        const hex = gasRes.slice(2);
-        gasEtherSeconds = BigInt('0x' + hex.slice(0, 64));
-        gasBalance = BigInt('0x' + hex.slice(64, 128));
-        gasLastUpdated = BigInt('0x' + hex.slice(128, 192));
+        const ethYield = ethRes && ethRes !== '0x' ? BigInt(ethRes) : 0n;
+        const wethYield = wethRes && wethRes !== '0x' ? BigInt(wethRes) : 0n;
+        const usdbYield = usdbRes && usdbRes !== '0x' ? BigInt(usdbRes) : 0n;
+        setData({ ethYield, usdbYield, wethYield });
       }
-
-      setData({ ethYield, gasBalance, gasEtherSeconds, gasLastUpdated, wethYield, usdbYield });
     } catch (err) {
       console.error('Failed to fetch yield data:', err);
     }
@@ -157,7 +157,7 @@ export function BlastYieldPanel() {
           <p className="text-gray-400 text-sm">Bridge contract not yet deployed on Blast</p>
         </div>
         <div className="bg-card rounded-2xl p-8 border border-gray-800 text-center text-gray-500">
-          Contract addresses are placeholders. Deploy the BlastBridgeERC20 contract first,
+          Contract addresses are placeholders. Deploy the Blast bridge contract first,
           then update bridge-config.json with the deployed addresses.
         </div>
       </div>
@@ -204,7 +204,7 @@ export function BlastYieldPanel() {
               claimingKey={claimingKey}
               claimStatus={claimStatus}
               disabled={!isAdmin || data.ethYield === 0n}
-              onClaim={() => claim('eth', 'claimETHYield')}
+              onClaim={() => claim('eth', 'claimBlastETHYield', [data.ethYield])}
             />
 
             {/* WETH Yield */}
@@ -216,7 +216,7 @@ export function BlastYieldPanel() {
               claimingKey={claimingKey}
               claimStatus={claimStatus}
               disabled={!isAdmin || data.wethYield === 0n}
-              onClaim={() => claim('weth', 'claimWETHYield', [data.wethYield])}
+              onClaim={() => claim('weth', 'claimBlastWETHYield', [data.wethYield])}
             />
 
             {/* USDB Yield */}
@@ -228,7 +228,7 @@ export function BlastYieldPanel() {
               claimingKey={claimingKey}
               claimStatus={claimStatus}
               disabled={!isAdmin || data.usdbYield === 0n}
-              onClaim={() => claim('usdb', 'claimUSDBYield', [data.usdbYield])}
+              onClaim={() => claim('usdb', 'claimBlastUSDBYield', [data.usdbYield])}
             />
 
             {/* Gas Refund */}
@@ -236,21 +236,15 @@ export function BlastYieldPanel() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-white font-medium text-sm">Gas Fee Refund</p>
-                  <p className="text-gray-500 text-xs mt-0.5">
-                    Balance: {fmt(data.gasBalance)} ETH
-                    {data.gasLastUpdated > 0n && (
-                      <> &middot; Last updated: {new Date(Number(data.gasLastUpdated) * 1000).toLocaleDateString()}</>
-                    )}
-                  </p>
+                  <p className="text-gray-500 text-xs mt-0.5">Claim accumulated gas refunds from Blast</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-[#FCFC03] font-mono text-sm">{fmt(data.gasBalance)} ETH</span>
                   {claimingKey === 'gas' ? (
                     <span className="text-xs text-yellow-400 min-w-[80px] text-right">{claimStatus}</span>
                   ) : (
                     <button
-                      onClick={() => claim('gas', 'claimGas')}
-                      disabled={!isAdmin || data.gasBalance === 0n}
+                      onClick={() => claim('gas', 'claimBlastGasMax')}
+                      disabled={!isAdmin}
                       className="px-3 py-1 rounded text-xs bg-[#FCFC03]/10 text-[#FCFC03] border border-[#FCFC03]/30 hover:bg-[#FCFC03]/20 transition-colors disabled:opacity-30 whitespace-nowrap"
                     >
                       Claim Gas

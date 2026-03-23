@@ -1,5 +1,5 @@
 import { defineChain } from 'viem';
-import { bsc } from 'viem/chains';
+import { mainnet, bsc, polygon, arbitrum, optimism, base, avalanche } from 'viem/chains';
 
 export const blockdag = defineChain({
   id: 1404,
@@ -25,9 +25,29 @@ export const blastChain = defineChain({
   },
 });
 
-export const SOURCE_CHAINS = [
+export const sonicChain = defineChain({
+  id: 146,
+  name: 'Sonic',
+  nativeCurrency: { name: 'Sonic', symbol: 'S', decimals: 18 },
+  rpcUrls: {
+    default: { http: ['https://rpc.soniclabs.com'] },
+  },
+  blockExplorers: {
+    default: { name: 'SonicScan', url: 'https://sonicscan.org' },
+  },
+});
+
+export const SUPPORTED_CHAINS = [
+  { ...mainnet, label: 'Ethereum', color: '#627EEA' },
   { ...bsc, label: 'BNB Chain', color: '#F3BA2F' },
+  { ...polygon, label: 'Polygon', color: '#8247E5' },
+  { ...arbitrum, label: 'Arbitrum', color: '#28A0F0' },
+  { ...optimism, label: 'Optimism', color: '#FF0420' },
+  { ...base, label: 'Base', color: '#0052FF' },
+  { ...avalanche, label: 'Avalanche', color: '#E84142' },
   { ...blastChain, label: 'Blast', color: '#FCFC03' },
+  { ...sonicChain, label: 'Sonic', color: '#1DB954' },
+  { ...blockdag, label: 'BlockDAG', color: '#00d4ff' },
 ] as const;
 
-export const ALL_CHAINS = [...SOURCE_CHAINS, blockdag];
+export const ALL_CHAINS = SUPPORTED_CHAINS.map(c => c);

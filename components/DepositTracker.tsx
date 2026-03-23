@@ -1,13 +1,14 @@
 'use client';
 
 import type { BridgeStatus } from '@/hooks/useBridge';
-import { chainName, explorerTxUrl, explorerLabel, getDestChainId } from '@/config/chainUtils';
+import { chainName, explorerTxUrl, getHyperlaneExplorerUrl } from '@/config/chainUtils';
 
 interface Props {
   status: BridgeStatus;
   txHash?: string;
-  releaseTxHash?: string;
+  messageId?: string;
   sourceChainId?: number;
+  destChainId?: number;
   depositBlock?: number;
   error?: string;
   onReset?: () => void;
@@ -19,8 +20,8 @@ function getStepIndex(status: BridgeStatus): number {
   const stepKeys = [
     ['approving'],
     ['depositing'],
-    ['confirming', 'waiting_relayer'],
-    ['released'],
+    ['confirming', 'waiting_delivery'],
+    ['delivered'],
   ];
   for (let i = 0; i < stepKeys.length; i++) {
     if (stepKeys[i].includes(status)) return i;
@@ -28,25 +29,25 @@ function getStepIndex(status: BridgeStatus): number {
   return -1;
 }
 
-export function DepositTracker({ status, txHash, releaseTxHash, sourceChainId, depositBlock, error, onReset, confirmations, requiredConfirmations }: Props) {
+export function DepositTracker({ status, txHash, messageId, sourceChainId, destChainId, depositBlock, error, onReset, confirmations, requiredConfirmations }: Props) {
   if (status === 'idle' || status === 'switching') return null;
 
   const srcChain = sourceChainId || 56;
-  const destChain = getDestChainId(srcChain);
+  const dstChain = destChainId || 1404;
   const srcName = chainName(srcChain);
-  const destName = chainName(destChain);
+  const destName = chainName(dstChain);
 
   const steps = [
     'Approve Token',
     'Deposit to Bridge',
-    'Waiting for Confirmations',
-    `Released on ${destName}`,
+    'Hyperlane Message Delivery',
+    `Delivered on ${destName}`,
   ];
 
   const currentIdx = getStepIndex(status);
-  const isComplete = status === 'released';
+  const isComplete = status === 'delivered';
   const isError = status === 'error';
-  const showConfirmations = (status === 'confirming' || status === 'waiting_relayer') &&
+  const showConfirmations = (status === 'confirming' || status === 'waiting_delivery') &&
     confirmations !== undefined && requiredConfirmations !== undefined && confirmations > 0;
   const confCount = confirmations ?? 0;
   const confRequired = requiredConfirmations ?? 15;
@@ -71,14 +72,24 @@ export function DepositTracker({ status, txHash, releaseTxHash, sourceChainId, d
 
       {isComplete && (
         <div className="mb-4 p-3 rounded-lg bg-green-500/10 border border-green-500/30">
-          <p className="text-green-400 text-sm font-semibold">Bridge complete! Tokens received on {destName}.</p>
+          <p className="text-green-400 text-sm font-semibold">Bridge complete! Tokens delivered on {destName}.</p>
         </div>
       )}
 
-      {status === 'waiting_relayer' && (
+      {status === 'waiting_delivery' && (
         <div className="mb-4 p-3 rounded-lg bg-accent/10 border border-accent/30">
-          <p className="text-accent text-sm">Deposit confirmed on {srcName}. Waiting for release on {destName}...</p>
-          <p className="text-gray-500 text-xs mt-1">This usually takes 30-60 seconds.</p>
+          <p className="text-accent text-sm">Deposit confirmed on {srcName}. Waiting for Hyperlane delivery to {destName}...</p>
+          <p className="text-gray-500 text-xs mt-1">This usually takes 1-5 minutes depending on the chains.</p>
+          {messageId && (
+            <a
+              href={getHyperlaneExplorerUrl(messageId)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-accent hover:text-accent-dim mt-1 inline-block"
+            >
+              Track on Hyperlane Explorer ↗
+            </a>
+          )}
         </div>
       )}
 
@@ -97,7 +108,7 @@ export function DepositTracker({ status, txHash, releaseTxHash, sourceChainId, d
 
           let label = stepLabel;
           if (i === 2 && showConfirmations) {
-            label = `Waiting for Confirmations (${Math.min(confCount, confRequired)}/${confRequired})`;
+            label = `Hyperlane Message Delivery (${Math.min(confCount, confRequired)}/${confRequired} confirmations)`;
           }
 
           return (
@@ -150,16 +161,16 @@ export function DepositTracker({ status, txHash, releaseTxHash, sourceChainId, d
               {txHash.slice(0, 10)}...{txHash.slice(-8)} ↗
             </a>
           </div>
-          {isComplete && releaseTxHash && (
+          {messageId && (
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs text-gray-500 shrink-0">Release Tx</span>
+              <span className="text-xs text-gray-500 shrink-0">Hyperlane</span>
               <a
-                href={explorerTxUrl(releaseTxHash, destChain)}
+                href={getHyperlaneExplorerUrl(messageId)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-xs text-green-400 hover:text-green-300 truncate font-mono transition-colors"
+                className="text-xs text-accent hover:text-accent-dim truncate font-mono transition-colors"
               >
-                {releaseTxHash.slice(0, 10)}...{releaseTxHash.slice(-8)} ↗
+                Track Message ↗
               </a>
             </div>
           )}

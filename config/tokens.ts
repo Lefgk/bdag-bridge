@@ -1,13 +1,13 @@
 import config from './bridge-config.json';
-import { getDestChainId } from './chainUtils';
+import { isPlaceholderAddress } from './chainUtils';
 
 export interface Token {
   symbol: string;
   name: string;
-  decimals: Record<number, number>; // chainId => decimals
+  decimals: Record<number, number>;
   isNative?: boolean;
-  icon: string; // URL to token icon
-  addresses: Record<number, string>; // chainId => address
+  icon: string;
+  addresses: Record<number, string>;
 }
 
 export const BRIDGE_TOKENS: Token[] = config.tokens.map(t => ({
@@ -22,9 +22,13 @@ export const BRIDGE_TOKENS: Token[] = config.tokens.map(t => ({
   ),
 }));
 
-export function getTokensForChain(chainId: number, destChainId?: number): Token[] {
-  const dest = destChainId ?? getDestChainId(chainId);
-  return BRIDGE_TOKENS.filter(t => t.addresses[chainId] && t.addresses[dest]);
+/** Returns tokens available on both source and destination chains (ignoring placeholder addresses). */
+export function getTokensForChain(sourceChainId: number, destChainId: number): Token[] {
+  return BRIDGE_TOKENS.filter(t => {
+    const srcAddr = t.addresses[sourceChainId];
+    const dstAddr = t.addresses[destChainId];
+    return srcAddr && dstAddr && !isPlaceholderAddress(srcAddr) && !isPlaceholderAddress(dstAddr);
+  });
 }
 
 export function getDecimals(token: Token, chainId: number): number {

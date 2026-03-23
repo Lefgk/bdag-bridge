@@ -3,21 +3,10 @@
 import { useState } from 'react';
 import { useAccount } from 'wagmi';
 import { useBridgeHistory, lookupDepositByTxHash, BridgeTx } from '@/hooks/useBridgeHistory';
-import { chainLabel, explorerTxUrl, RELAYER_API } from '@/config/chainUtils';
+import { chainLabel, explorerTxUrl } from '@/config/chainUtils';
 
-function directionBadge(sourceChainId: number, targetChainId: number) {
-  const label = `${chainLabel(sourceChainId)} → ${chainLabel(targetChainId)}`;
-  const chainColor = sourceChainId === 56 ? '#F3BA2F' : sourceChainId === 81457 ? '#FCFC03' : undefined;
-  if (chainColor) {
-    return (
-      <span
-        className="inline-block px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap border"
-        style={{ backgroundColor: `${chainColor}15`, color: chainColor, borderColor: `${chainColor}30` }}
-      >
-        {label}
-      </span>
-    );
-  }
+function directionBadge(sourceChainId: number, destChainId: number) {
+  const label = `${chainLabel(sourceChainId)} → ${chainLabel(destChainId)}`;
   return (
     <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold whitespace-nowrap bg-accent/15 text-accent border border-accent/30">
       {label}
@@ -40,11 +29,11 @@ function formatDate(timestamp?: number): string {
   });
 }
 
-function StatusBadge({ released }: { released: boolean }) {
-  if (released) {
+function StatusBadge({ delivered }: { delivered: boolean }) {
+  if (delivered) {
     return (
       <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-green-500/15 text-green-400 border border-green-500/30">
-        Released
+        Delivered
       </span>
     );
   }
@@ -57,20 +46,20 @@ function StatusBadge({ released }: { released: boolean }) {
 
 interface LookupResult {
   sourceChainId: number;
-  targetChainId: number;
-  depositNumber: bigint;
+  destChainId: number;
+  messageId: string;
   tokenSymbol: string;
   amount: string;
   receiver: string;
-  released: boolean;
-  releaseTxHash?: string;
+  delivered: boolean;
+  hyperlaneUrl: string;
 }
 
 export function TransactionHistory() {
   const { isConnected } = useAccount();
   const { txs, loading, error, refetch } = useBridgeHistory();
 
-  const [filterUnreceived, setFilterUnreceived] = useState(false);
+  const [filterPending, setFilterPending] = useState(false);
   const [lookupHash, setLookupHash] = useState('');
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupResult, setLookupResult] = useState<LookupResult | null>(null);
@@ -101,63 +90,7 @@ export function TransactionHistory() {
     }
   };
 
-  const [forceLoading, setForceLoading] = useState<string | null>(null);
-  const [forceResult, setForceResult] = useState<string>();
-
-  const handleForceCheck = async (txHash: string) => {
-    setForceLoading(txHash);
-    setForceResult(undefined);
-    try {
-      const res = await fetch(`${RELAYER_API}/check-tx/${txHash}`);
-      const data = await res.json();
-      if (data.status === 'released') {
-        setForceResult(`Released! Tx: ${data.releaseTxHash}`);
-        refetch();
-      } else if (data.status === 'already_processed') {
-        setForceResult(`Already processed. Tx: ${data.releaseTxHash}`);
-        refetch();
-      } else {
-        setForceResult(data.error || 'Unknown result');
-      }
-    } catch (err: any) {
-      setForceResult(`Error: ${err.message}`);
-    } finally {
-      setForceLoading(null);
-    }
-  };
-
-  const handleForceAll = async () => {
-    setForceLoading('all');
-    setForceResult(undefined);
-    try {
-      const res = await fetch(`${RELAYER_API}/retry-pending`);
-      const data = await res.json();
-      if (data.count === 0) {
-        setForceResult('No pending deposits found');
-      } else {
-        // Force-check each pending deposit's tx
-        let released = 0;
-        for (const item of data.pending) {
-          // Also try our own wallet's pending txs
-          const matching = txs.find(tx => !tx.released && `${tx.sourceChainId}_${tx.depositNumber}` === item.key);
-          if (matching) {
-            try {
-              const r = await fetch(`${RELAYER_API}/check-tx/${matching.depositTxHash}`);
-              const d = await r.json();
-              if (d.status === 'released' || d.status === 'already_processed') released++;
-            } catch { /* skip */ }
-          }
-        }
-        setForceResult(`Found ${data.count} pending globally, processed ${released} of yours`);
-      }
-    } catch (err: any) {
-      setForceResult(`Error: ${err.message}`);
-    }
-    setForceLoading(null);
-    refetch();
-  };
-
-  const filteredTxs = filterUnreceived ? txs.filter(tx => !tx.released) : txs;
+  const filteredTxs = filterPending ? txs.filter(tx => !tx.delivered) : txs;
 
   if (!isConnected) {
     return (
@@ -204,7 +137,7 @@ export function TransactionHistory() {
           <div className="mt-3 p-3 rounded-lg bg-bg-dark border border-gray-700 space-y-1 text-sm">
             <div className="flex justify-between">
               <span className="text-gray-400">Direction</span>
-              {directionBadge(lookupResult.sourceChainId, lookupResult.targetChainId)}
+              {directionBadge(lookupResult.sourceChainId, lookupResult.destChainId)}
             </div>
             <div className="flex justify-between">
               <span className="text-gray-400">Token</span>
@@ -214,43 +147,27 @@ export function TransactionHistory() {
               <span className="text-gray-400">Amount</span>
               <span className="text-white">{parseFloat(lookupResult.amount).toFixed(4)}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-400">Deposit #</span>
-              <span className="text-white">{lookupResult.depositNumber.toString()}</span>
-            </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-400">Status</span>
-              <StatusBadge released={lookupResult.released} />
+              <StatusBadge delivered={lookupResult.delivered} />
             </div>
-            {lookupResult.releaseTxHash && (
+            {lookupResult.hyperlaneUrl && (
               <div className="flex justify-between">
-                <span className="text-gray-400">Release Tx</span>
+                <span className="text-gray-400">Hyperlane</span>
                 <a
-                  href={explorerTxUrl(lookupResult.releaseTxHash, lookupResult.targetChainId)}
+                  href={lookupResult.hyperlaneUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-accent hover:text-accent-dim text-xs break-all"
+                  className="text-accent hover:text-accent-dim text-xs"
                 >
-                  {truncateHash(lookupResult.releaseTxHash)}
+                  Track on Explorer ↗
                 </a>
               </div>
-            )}
-            {!lookupResult.released && (
-              <button
-                onClick={() => handleForceCheck(lookupHash.trim())}
-                disabled={forceLoading === lookupHash.trim()}
-                className="mt-2 w-full py-2 rounded-lg text-sm font-semibold bg-yellow-500/20 text-yellow-400 border border-yellow-500/30 hover:bg-yellow-500/30 disabled:opacity-40 transition-colors"
-              >
-                {forceLoading === lookupHash.trim() ? 'Releasing...' : 'Force Release via Relayer'}
-              </button>
             )}
           </div>
         )}
         {lookupDone && lookupError && (
           <p className="mt-2 text-sm text-red-400">{lookupError}</p>
-        )}
-        {forceResult && (
-          <p className="mt-2 text-sm text-accent">{forceResult}</p>
         )}
       </div>
 
@@ -262,21 +179,12 @@ export function TransactionHistory() {
             <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer">
               <input
                 type="checkbox"
-                checked={filterUnreceived}
-                onChange={e => setFilterUnreceived(e.target.checked)}
+                checked={filterPending}
+                onChange={e => setFilterPending(e.target.checked)}
                 className="accent-accent"
               />
-              Show only unreceived
+              Show only pending
             </label>
-            {txs.some(tx => !tx.released) && (
-              <button
-                onClick={handleForceAll}
-                disabled={forceLoading === 'all'}
-                className="text-xs px-3 py-1 rounded-lg bg-yellow-500/10 text-yellow-400 border border-yellow-500/30 hover:bg-yellow-500/20 transition-colors disabled:opacity-40"
-              >
-                {forceLoading === 'all' ? 'Processing...' : 'Force All Pending'}
-              </button>
-            )}
             <button
               onClick={refetch}
               disabled={loading}
@@ -301,7 +209,7 @@ export function TransactionHistory() {
         ) : filteredTxs.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-gray-500 text-sm">
-              {filterUnreceived ? 'No pending transactions.' : 'No bridge transactions found.'}
+              {filterPending ? 'No pending transactions.' : 'No bridge transactions found.'}
             </p>
           </div>
         ) : (
@@ -309,61 +217,45 @@ export function TransactionHistory() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-gray-500 text-xs border-b border-gray-800">
-                  <th className="text-left pb-2 pr-3 font-medium">ID</th>
                   <th className="text-left pb-2 pr-3 font-medium">Date</th>
                   <th className="text-left pb-2 pr-3 font-medium">Direction</th>
-                  <th className="text-left pb-2 pr-3 font-medium">Sending Tx</th>
-                  <th className="text-left pb-2 pr-3 font-medium">Receiving Tx</th>
+                  <th className="text-left pb-2 pr-3 font-medium">Deposit Tx</th>
                   <th className="text-right pb-2 pr-3 font-medium">Amount</th>
-                  <th className="text-right pb-2 font-medium">Status</th>
-                  <th className="text-right pb-2 font-medium"></th>
+                  <th className="text-right pb-2 pr-3 font-medium">Status</th>
+                  <th className="text-right pb-2 font-medium">Track</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredTxs.map((tx, i) => (
-                  <tr key={`${tx.depositTxHash}-${i}`} className="border-b border-gray-800/50 last:border-0">
-                    <td className="py-2.5 pr-3 text-gray-500 text-xs font-mono whitespace-nowrap">{tx.sourceChainId}_{tx.depositNumber.toString()}</td>
+                  <tr key={`${tx.txHash}-${i}`} className="border-b border-gray-800/50 last:border-0">
                     <td className="py-2.5 pr-3 text-gray-400 whitespace-nowrap">{formatDate(tx.timestamp)}</td>
-                    <td className="py-2.5 pr-3">{directionBadge(tx.sourceChainId, tx.targetChainId)}</td>
+                    <td className="py-2.5 pr-3">{directionBadge(tx.sourceChainId, tx.destChainId)}</td>
                     <td className="py-2.5 pr-3">
                       <a
-                        href={explorerTxUrl(tx.depositTxHash, tx.sourceChainId)}
+                        href={explorerTxUrl(tx.txHash, tx.sourceChainId)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-accent hover:text-accent-dim text-xs"
                       >
-                        {truncateHash(tx.depositTxHash)}
+                        {truncateHash(tx.txHash)}
                       </a>
-                    </td>
-                    <td className="py-2.5 pr-3">
-                      {tx.releaseTxHash ? (
-                        <a
-                          href={explorerTxUrl(tx.releaseTxHash, tx.targetChainId)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-accent hover:text-accent-dim text-xs"
-                        >
-                          {truncateHash(tx.releaseTxHash)}
-                        </a>
-                      ) : (
-                        <span className="text-gray-600 text-xs">—</span>
-                      )}
                     </td>
                     <td className="py-2.5 pr-3 text-right text-white whitespace-nowrap">
                       {isNaN(parseFloat(tx.amount)) ? '—' : `${parseFloat(tx.amount).toFixed(4)} ${tx.tokenSymbol}`}
                     </td>
-                    <td className="py-2.5 text-right">
-                      <StatusBadge released={tx.released} />
+                    <td className="py-2.5 pr-3 text-right">
+                      <StatusBadge delivered={tx.delivered} />
                     </td>
-                    <td className="py-2.5 pl-2 text-right">
-                      {!tx.released && tx.depositTxHash && (
-                        <button
-                          onClick={() => handleForceCheck(tx.depositTxHash)}
-                          disabled={forceLoading === tx.depositTxHash}
-                          className="text-[10px] px-2 py-0.5 rounded bg-yellow-500/10 text-yellow-400 border border-yellow-500/30 hover:bg-yellow-500/20 transition-colors disabled:opacity-40 whitespace-nowrap"
+                    <td className="py-2.5 text-right">
+                      {tx.hyperlaneUrl && (
+                        <a
+                          href={tx.hyperlaneUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] px-2 py-0.5 rounded bg-accent/10 text-accent border border-accent/30 hover:bg-accent/20 transition-colors whitespace-nowrap"
                         >
-                          {forceLoading === tx.depositTxHash ? 'Pinging...' : 'Ping'}
-                        </button>
+                          Hyperlane ↗
+                        </a>
                       )}
                     </td>
                   </tr>

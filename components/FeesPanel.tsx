@@ -1,20 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useAccount, useWriteContract, useSwitchChain } from 'wagmi';
 import config from '@/config/bridge-config.json';
-import { getRpc, rpcCall } from '@/config/chainUtils';
+import { getRpc, rpcCall, isPlaceholderAddress } from '@/config/chainUtils';
 import { formatUnits } from 'viem';
-
-const BRIDGE_DISTRIBUTE_FEES_ABI = [
-  {
-    inputs: [{ name: '_token', type: 'address' }],
-    name: 'distributeFees',
-    outputs: [],
-    stateMutability: 'nonpayable',
-    type: 'function',
-  },
-] as const;
 
 // ── On-chain read helpers ────────────────────────────────────────────────────
 
@@ -24,43 +13,36 @@ async function ethCall(chainId: number, to: string, data: string): Promise<strin
   return result && result !== '0x' ? result : '0x' + '0'.repeat(64);
 }
 
-function encodeAddress(addr: string): string {
-  return addr.slice(2).toLowerCase().padStart(64, '0');
-}
-
-async function fetchBalance(chainId: number, token: string, holder: string): Promise<bigint> {
+async function fetchFeeRecipient(chainId: number, bridge: string): Promise<string> {
   try {
-    const result = await ethCall(chainId, token, '0x70a08231' + encodeAddress(holder));
-    return BigInt(result);
-  } catch { return 0n; }
-}
-
-async function fetchAccumulatedFees(chainId: number, bridge: string, token: string): Promise<bigint> {
-  try {
-    const result = await ethCall(chainId, bridge, '0xfcf66664' + encodeAddress(token));
-    return BigInt(result);
-  } catch { return 0n; }
-}
-
-async function fetchDepositCount(chainId: number, bridge: string): Promise<number> {
-  try {
-    const result = await ethCall(chainId, bridge, '0x2dfdf0b5');
-    return Number(BigInt(result));
-  } catch { return 0; }
-}
-
-async function fetchFeeSplitter(chainId: number, bridge: string): Promise<string> {
-  try {
-    const result = await ethCall(chainId, bridge, '0x6052970c');
+    // feeRecipient() selector
+    const result = await ethCall(chainId, bridge, '0x46904840');
     return '0x' + result.slice(-40);
   } catch { return '0x' + '0'.repeat(40); }
 }
 
 async function fetchDefaultFeeRate(chainId: number, bridge: string): Promise<bigint> {
   try {
+    // defaultBridgeFee() selector
     const result = await ethCall(chainId, bridge, '0x6ced0c92');
     return BigInt(result);
   } catch { return 0n; }
+}
+
+async function fetchTotalBridgeTxCount(chainId: number, bridge: string): Promise<number> {
+  try {
+    // totalBridgeTxCount() selector
+    const result = await ethCall(chainId, bridge, '0x2dfdf0b5');
+    return Number(BigInt(result));
+  } catch { return 0; }
+}
+
+async function fetchDepositNonce(chainId: number, bridge: string): Promise<number> {
+  try {
+    // depositNonce() selector
+    const result = await ethCall(chainId, bridge, '0xde35f282');
+    return Number(BigInt(result));
+  } catch { return 0; }
 }
 
 // ── Formatting ────────────────────────────────────────────────────────────────
@@ -77,97 +59,76 @@ function fmt(amount: bigint, decimals: number): string {
   return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 });
 }
 
-function chainGasOverrides(chainId: number) {
-  const chain = getChainConfig(chainId);
-  if (chain && 'gasPrice' in chain && chain.gasPrice) {
-    return { gasPrice: BigInt(chain.gasPrice as number) };
-  }
-  return {};
-}
-
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-interface Row {
+interface ChainRow {
   chainId: number;
   chainName: string;
-  symbol: string;
-  decimals: number;
-  tokenAddress: string;
   bridgeAddress: string;
-  accumulatedFees: bigint;
-  bridgeBalance: bigint;
-  depositCount: number;
-  feeMode: 'auto' | 'manual' | 'burned';
+  feeRecipient: string;
   feeRatePpm: bigint;
+  depositNonce: number;
+  txCount: number;
+  deployed: boolean;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function FeesPanel() {
-  const { address, chainId: walletChainId } = useAccount();
-  const { writeContractAsync } = useWriteContract();
-  const { switchChainAsync } = useSwitchChain();
-
-  const [rows, setRows] = useState<Row[]>([]);
+  const [rows, setRows] = useState<ChainRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [collectingKey, setCollectingKey] = useState<string>();
-  const [collectStatus, setCollectStatus] = useState<string>();
 
   const refresh = useCallback(async () => {
     setLoading(true);
-    const result: Row[] = [];
+    const result: ChainRow[] = [];
 
-    for (const chainIdStr of Object.keys(config.chains)) {
-      const chainId = Number(chainIdStr);
+    const chainIds = Object.keys(config.chains).map(Number);
+
+    await Promise.all(chainIds.map(async (chainId) => {
       const chain = getChainConfig(chainId);
-      if (!chain) continue;
+      if (!chain) return;
 
-      const bridgeAddr = chain.contracts.bridgeERC20;
-      const isBDAG = chainId === 1404;
+      const bridgeAddr = chain.contracts.bridge;
+      const deployed = !isPlaceholderAddress(bridgeAddr);
 
-      // Fetch chain-level data
-      const [depositCount, feeSplitterAddr, defaultFeeRate] = await Promise.all([
-        fetchDepositCount(chainId, bridgeAddr),
-        fetchFeeSplitter(chainId, bridgeAddr),
-        fetchDefaultFeeRate(chainId, bridgeAddr),
-      ]);
-
-      const hasFeeSplitter = feeSplitterAddr !== '0x' + '0'.repeat(40);
-      const feeMode: Row['feeMode'] = isBDAG ? 'burned' : hasFeeSplitter ? 'auto' : 'manual';
-
-      // Fetch per-token data
-      for (const token of config.tokens) {
-        const tc = token.addresses[chainIdStr as keyof typeof token.addresses] as
-          | { address: string; decimals: number }
-          | undefined;
-        if (!tc) continue;
-
-        const [balance, accumulated] = await Promise.all([
-          fetchBalance(chainId, tc.address, bridgeAddr),
-          fetchAccumulatedFees(chainId, bridgeAddr, tc.address),
-        ]);
-
+      if (!deployed) {
         result.push({
           chainId,
           chainName: chain.label,
-          symbol: token.symbol,
-          decimals: tc.decimals,
-          tokenAddress: tc.address,
           bridgeAddress: bridgeAddr,
-          accumulatedFees: accumulated,
-          bridgeBalance: balance,
-          depositCount,
-          feeMode,
-          feeRatePpm: defaultFeeRate,
+          feeRecipient: '',
+          feeRatePpm: 0n,
+          depositNonce: 0,
+          txCount: 0,
+          deployed: false,
         });
+        return;
       }
-    }
 
-    // Sort: claimable fees first, then by balance
+      const [feeRecipient, defaultFeeRate, depositNonce, txCount] = await Promise.all([
+        fetchFeeRecipient(chainId, bridgeAddr),
+        fetchDefaultFeeRate(chainId, bridgeAddr),
+        fetchDepositNonce(chainId, bridgeAddr),
+        fetchTotalBridgeTxCount(chainId, bridgeAddr),
+      ]);
+
+      result.push({
+        chainId,
+        chainName: chain.label,
+        bridgeAddress: bridgeAddr,
+        feeRecipient,
+        feeRatePpm: defaultFeeRate,
+        depositNonce,
+        txCount,
+        deployed: true,
+      });
+    }));
+
+    // Sort: deployed first, then by txCount
     result.sort((a, b) => {
-      if (a.accumulatedFees > 0n && b.accumulatedFees === 0n) return -1;
-      if (a.accumulatedFees === 0n && b.accumulatedFees > 0n) return 1;
-      return b.bridgeBalance > a.bridgeBalance ? 1 : b.bridgeBalance < a.bridgeBalance ? -1 : 0;
+      if (a.deployed && !b.deployed) return -1;
+      if (!a.deployed && b.deployed) return 1;
+      return b.txCount - a.txCount;
     });
     setRows(result);
     setLoading(false);
@@ -175,57 +136,23 @@ export function FeesPanel() {
 
   useEffect(() => { refresh(); }, [refresh]);
 
-  async function distribute(row: Row) {
-    if (!address || row.accumulatedFees === 0n) return;
-    const key = `${row.chainId}-${row.symbol}`;
-
-    try {
-      setCollectingKey(key);
-
-      if (walletChainId !== row.chainId) {
-        setCollectStatus('Switching chain...');
-        await switchChainAsync({ chainId: row.chainId });
-      }
-
-      setCollectStatus('Distributing fees...');
-      await writeContractAsync({
-        address: row.bridgeAddress as `0x${string}`,
-        abi: BRIDGE_DISTRIBUTE_FEES_ABI,
-        functionName: 'distributeFees',
-        args: [row.tokenAddress as `0x${string}`],
-        ...chainGasOverrides(row.chainId),
-      });
-
-      setCollectStatus('Done!');
-      setTimeout(() => { setCollectingKey(undefined); setCollectStatus(undefined); refresh(); }, 2000);
-    } catch (err: any) {
-      const msg = err.shortMessage || err.message;
-      setCollectStatus(msg?.includes('User rejected') ? 'Cancelled' : `Error: ${msg}`);
-      setTimeout(() => { setCollectingKey(undefined); setCollectStatus(undefined); }, 3000);
-    }
-  }
-
-  function feeStatusLabel(r: Row): { label: string; color: string } {
-    if (r.feeMode === 'burned') return { label: 'Burned (not minted)', color: 'text-gray-500' };
-    if (r.accumulatedFees > 0n) return { label: fmt(r.accumulatedFees, r.decimals), color: 'text-accent' };
-    if (r.feeMode === 'auto') return { label: 'Auto-distributed', color: 'text-green-500' };
-    return { label: '0', color: 'text-gray-600' };
-  }
-
-  const feePercent = rows.length > 0 ? (Number(rows[0].feeRatePpm) / 10000).toFixed(2) : '0.60';
+  const deployedRows = rows.filter(r => r.deployed);
+  const feePercent = deployedRows.length > 0 && deployedRows[0].feeRatePpm > 0n
+    ? (Number(deployedRows[0].feeRatePpm) / 10000).toFixed(2)
+    : '0.60';
 
   return (
     <div className="space-y-6">
       <div className="text-center">
-        <h1 className="text-3xl font-sans font-bold text-white mb-2">Fee Distribution</h1>
+        <h1 className="text-3xl font-sans font-bold text-white mb-2">Bridge Stats</h1>
         <p className="text-gray-400 text-sm">
-          Bridge fee rate: {feePercent}% &middot; All data read on-chain
+          Bridge fee rate: {feePercent}% &middot; Fees auto-routed to feeRecipient
         </p>
       </div>
 
       <div className="bg-card rounded-2xl p-5 border border-gray-800">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-sans font-semibold text-gray-300">Bridge Fees</h2>
+          <h2 className="text-sm font-sans font-semibold text-gray-300">Per-Chain Stats</h2>
           <button
             onClick={refresh}
             disabled={loading}
@@ -245,58 +172,48 @@ export function FeesPanel() {
               <thead>
                 <tr className="text-gray-500 text-xs border-b border-gray-800">
                   <th className="text-left pb-2 pr-3 font-medium">Chain</th>
-                  <th className="text-left pb-2 pr-3 font-medium">Token</th>
                   <th className="text-right pb-2 pr-3 font-medium">Deposits</th>
-                  <th className="text-right pb-2 pr-3 font-medium">Claimable Fees</th>
-                  <th className="text-right pb-2 pr-3 font-medium">Bridge Balance</th>
-                  <th className="text-right pb-2 font-medium"></th>
+                  <th className="text-right pb-2 pr-3 font-medium">Total Txs</th>
+                  <th className="text-left pb-2 pr-3 font-medium">Fee Recipient</th>
+                  <th className="text-right pb-2 font-medium">Status</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => {
-                  const key = `${r.chainId}-${r.symbol}`;
-                  const isCollecting = collectingKey === key;
-                  const status = feeStatusLabel(r);
-                  const canDistribute = r.accumulatedFees > 0n;
-                  const chainColor = r.chainId === 56
-                    ? 'bg-[#F3BA2F]/15 text-[#F3BA2F] border border-[#F3BA2F]/30'
-                    : r.chainId === 81457
-                    ? 'bg-[#FCFC03]/15 text-[#FCFC03] border border-[#FCFC03]/30'
-                    : 'bg-accent/15 text-accent border border-accent/30';
-                  return (
-                    <tr key={key} className="border-b border-gray-800/50 last:border-0">
-                      <td className="py-2.5 pr-3">
-                        <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold ${chainColor}`}>
-                          {r.chainName}
+                {rows.map((r) => (
+                  <tr key={r.chainId} className="border-b border-gray-800/50 last:border-0">
+                    <td className="py-2.5 pr-3">
+                      <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-accent/15 text-accent border border-accent/30">
+                        {r.chainName}
+                      </span>
+                    </td>
+                    <td className="py-2.5 pr-3 text-right text-gray-400 font-mono">
+                      {r.deployed ? r.depositNonce : '—'}
+                    </td>
+                    <td className="py-2.5 pr-3 text-right text-gray-400 font-mono">
+                      {r.deployed ? r.txCount : '—'}
+                    </td>
+                    <td className="py-2.5 pr-3">
+                      {r.deployed && r.feeRecipient !== '0x' + '0'.repeat(40) ? (
+                        <span className="text-xs text-gray-400 font-mono">
+                          {r.feeRecipient.slice(0, 8)}...{r.feeRecipient.slice(-6)}
                         </span>
-                      </td>
-                      <td className="py-2.5 pr-3 text-white font-medium">{r.symbol}</td>
-                      <td className="py-2.5 pr-3 text-right text-gray-400 font-mono">{r.depositCount}</td>
-                      <td className="py-2.5 pr-3 text-right font-mono whitespace-nowrap">
-                        <span className={status.color}>{status.label}</span>
-                      </td>
-                      <td className="py-2.5 pr-3 text-right font-mono whitespace-nowrap">
-                        <span className={r.bridgeBalance > 0n ? 'text-green-400' : 'text-gray-600'}>
-                          {fmt(r.bridgeBalance, r.decimals)}
+                      ) : (
+                        <span className="text-xs text-gray-600">—</span>
+                      )}
+                    </td>
+                    <td className="py-2.5 text-right">
+                      {r.deployed ? (
+                        <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-green-500/15 text-green-400 border border-green-500/30">
+                          Live
                         </span>
-                      </td>
-                      <td className="py-2.5 text-right">
-                        {isCollecting ? (
-                          <span className="text-xs text-yellow-400">{collectStatus}</span>
-                        ) : canDistribute ? (
-                          <button
-                            onClick={() => distribute(r)}
-                            className="px-3 py-1 rounded text-xs bg-accent/10 text-accent border border-accent/30 hover:bg-accent/20 transition-colors whitespace-nowrap"
-                          >
-                            Distribute
-                          </button>
-                        ) : (
-                          <span className="text-xs text-gray-600">&mdash;</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
+                      ) : (
+                        <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-gray-500/15 text-gray-500 border border-gray-500/30">
+                          Not Deployed
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>

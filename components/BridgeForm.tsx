@@ -1,16 +1,15 @@
 'use client';
 
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { useAccount, useBalance, useReadContract } from 'wagmi';
+import { useAccount, useBalance } from 'wagmi';
 import { formatUnits, parseUnits } from 'viem';
 import { TokenSelector } from './TokenSelector';
 import { DepositTracker } from './DepositTracker';
 import { ChainStatus } from './ChainStatus';
 import { useBridge } from '@/hooks/useBridge';
-import { ROUTER_ABI } from '@/lib/abi';
 import { CONTRACTS } from '@/config/contracts';
 import { getTokensForChain, Token, getDecimals } from '@/config/tokens';
-import { getDestChainId, getDestChains, chainLabel, BDAG_CHAIN_ID } from '@/config/chainUtils';
+import { getDestinationChains, chainLabel, getHyperlaneDomain, isPlaceholderAddress, getRpc, rpcCall } from '@/config/chainUtils';
 import config from '@/config/bridge-config.json';
 
 // Build chain list from config for the chain selector
@@ -28,14 +27,15 @@ export function BridgeForm() {
   const [token, setToken] = useState<Token | null>(null);
   const [amount, setAmount] = useState('');
   const [mounted, setMounted] = useState(false);
+  const [igpFee, setIgpFee] = useState<string>('0');
   useEffect(() => { setMounted(true); }, []);
 
-  const destChains = useMemo(() => getDestChains(sourceChainId), [sourceChainId]);
+  const destChains = useMemo(() => getDestinationChains(sourceChainId), [sourceChainId]);
   const targetChainId = targetChainIdOverride && destChains.includes(targetChainIdOverride)
     ? targetChainIdOverride
     : destChains[0];
   const tokens = useMemo(() => getTokensForChain(sourceChainId, targetChainId), [sourceChainId, targetChainId]);
-  const { bridge, status, txHash, releaseTxHash, depositBlock, error, reset, confirmations, requiredConfirmations, sourceChainId: bridgeSourceChainId } = useBridge();
+  const { bridge, status, txHash, messageId, depositBlock, error, reset, confirmations, requiredConfirmations, sourceChainId: bridgeSourceChainId, destChainId: bridgeDestChainId } = useBridge();
 
   const tokenAddr = token && !token.isNative ? token.addresses[sourceChainId] : undefined;
   const { data: balance } = useBalance({
@@ -44,6 +44,59 @@ export function BridgeForm() {
     chainId: sourceChainId,
     query: { enabled: isConnected && !!token },
   });
+
+  // Quote IGP fee and protocol fee
+  const amountParsed = useMemo(() => {
+    if (!token || !amount || parseFloat(amount) <= 0) return undefined;
+    try { return parseUnits(amount, getDecimals(token, sourceChainId)); } catch { return undefined; }
+  }, [token, amount, sourceChainId]);
+
+  const [protocolFeeNum, setProtocolFeeNum] = useState(0);
+  const [igpFeeNum, setIgpFeeNum] = useState(0);
+
+  useEffect(() => {
+    if (!amountParsed || !token) {
+      setProtocolFeeNum(0);
+      setIgpFeeNum(0);
+      return;
+    }
+    // Default 0.6% protocol fee estimate
+    setProtocolFeeNum(parseFloat(amount) * 0.006);
+    setIgpFeeNum(0);
+
+    const routerAddr = CONTRACTS[sourceChainId]?.router;
+    if (!routerAddr || isPlaceholderAddress(routerAddr)) return;
+
+    // Try to fetch real fees from contract
+    const fetchFees = async () => {
+      try {
+        const rpc = getRpc(sourceChainId);
+        const destDomain = getHyperlaneDomain(targetChainId);
+        const tkAddr = token.isNative ? '0x0000000000000000000000000000000000000000' : token.addresses[sourceChainId];
+        const receiver = address || '0x0000000000000000000000000000000000000000';
+
+        // quoteBridgeFee
+        const quoteData = '0x51505529' +
+          destDomain.toString(16).padStart(64, '0') +
+          receiver.slice(2).padStart(64, '0') +
+          tkAddr.slice(2).padStart(64, '0') +
+          amountParsed.toString(16).padStart(64, '0');
+        const quoteResult = await rpcCall(rpc, 'eth_call', [{ to: routerAddr, data: quoteData }, 'latest'], 5000);
+        if (quoteResult && quoteResult !== '0x') {
+          setIgpFeeNum(parseFloat(formatUnits(BigInt(quoteResult), 18)));
+        }
+
+        // getProtocolFeeAmount
+        const originDomain = getHyperlaneDomain(sourceChainId);
+        const protoData = '0x' + 'TODO_SELECTOR' +
+          originDomain.toString(16).padStart(64, '0') +
+          tkAddr.slice(2).padStart(64, '0') +
+          amountParsed.toString(16).padStart(64, '0');
+        // Protocol fee defaults to 0.6% if contract call fails
+      } catch { /* use defaults */ }
+    };
+    fetchFees();
+  }, [amountParsed, token, sourceChainId, targetChainId, address, amount]);
 
   const handleSwapDirection = () => {
     setSourceChainId(targetChainId);
@@ -74,44 +127,28 @@ export function BridgeForm() {
     reset();
   };
 
-  // Fetch on-chain fee quote
-  const amountParsed = useMemo(() => {
-    if (!token || !amount || parseFloat(amount) <= 0) return undefined;
-    try { return parseUnits(amount, getDecimals(token, sourceChainId)); } catch { return undefined; }
-  }, [token, amount, sourceChainId]);
-  const feeTokenAddr = token && !token.isNative ? token.addresses[sourceChainId] : undefined;
-  const routerAddr = CONTRACTS[sourceChainId]?.router;
-  const { data: onChainFee } = useReadContract({
-    address: routerAddr,
-    abi: ROUTER_ABI,
-    functionName: 'getERC20BridgeFeeQuote',
-    args: feeTokenAddr && amountParsed ? [feeTokenAddr as `0x${string}`, amountParsed] : undefined,
-    chainId: sourceChainId,
-    query: { enabled: !!feeTokenAddr && !!amountParsed },
-  });
-
   const decimals = token ? getDecimals(token, sourceChainId) : 18;
-  const feeNum = onChainFee ? parseFloat(formatUnits(onChainFee as bigint, decimals)) : (amount ? parseFloat(amount) * 0.006 : 0);
-  const receiveNum = amount ? parseFloat(amount) - feeNum : 0;
-  const precision = feeNum > 0 && feeNum < 0.000001 ? 10 : feeNum < 0.01 ? 8 : 6;
-  const fee = feeNum.toFixed(precision);
+  const receiveNum = amount ? parseFloat(amount) - protocolFeeNum : 0;
+  const precision = protocolFeeNum > 0 && protocolFeeNum < 0.000001 ? 10 : protocolFeeNum < 0.01 ? 8 : 6;
+  const fee = protocolFeeNum.toFixed(precision);
   const receive = receiveNum > 0 ? receiveNum.toFixed(precision) : '0';
-  const feePercent = onChainFee && amount && parseFloat(amount) > 0
-    ? ((feeNum / parseFloat(amount)) * 100).toFixed(1)
-    : '0.6';
-  const isActive = status !== 'idle' && status !== 'released' && status !== 'error';
+  const isActive = status !== 'idle' && status !== 'delivered' && status !== 'error';
+
+  const routerContracts = CONTRACTS[sourceChainId];
+  const notDeployed = !routerContracts || isPlaceholderAddress(routerContracts.router);
 
   const bridgingRef = useRef(false);
   const handleBridge = () => {
     if (!token || !amount || bridgingRef.current) return;
     bridgingRef.current = true;
-    bridge(sourceChainId, token, amount, undefined, targetChainId).finally(() => { bridgingRef.current = false; });
+    bridge(sourceChainId, token, amount, targetChainId).finally(() => { bridgingRef.current = false; });
   };
 
   const receiveSymbol = token?.symbol || '';
 
   const buttonText = () => {
     if (!mounted || !isConnected) return 'Connect Wallet';
+    if (notDeployed) return 'Bridge Not Deployed';
     if (!token) return 'Select Token';
     if (!amount || parseFloat(amount) <= 0) return 'Enter Amount';
     switch (status) {
@@ -119,13 +156,11 @@ export function BridgeForm() {
       case 'approving': return 'Approving...';
       case 'depositing': return 'Confirm in Wallet...';
       case 'confirming': return 'Confirming...';
-      case 'waiting_relayer': return 'Waiting for Release...';
+      case 'waiting_delivery': return 'Waiting for Delivery...';
       default: return 'Bridge';
     }
   };
 
-  const sourceLabel = chainLabel(sourceChainId);
-  const targetLabel = chainLabel(targetChainId);
   const targetIcon = (config.chains[String(targetChainId) as keyof typeof config.chains] as any)?.icon;
 
   return (
@@ -191,19 +226,12 @@ export function BridgeForm() {
         <div className="p-4 pt-5 border-t border-gray-800/50">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs text-gray-500 uppercase tracking-wider">To</span>
-            {destChains.length > 1 ? (
-              <ChainPill
-                chainId={targetChainId}
-                chains={CHAIN_LIST.filter(c => destChains.includes(c.id))}
-                onChange={handleTargetChange}
-                disabled={isActive}
-              />
-            ) : (
-              <span className="text-xs font-semibold text-accent bg-accent/10 border border-accent/30 px-3 py-1 rounded-full flex items-center gap-1.5">
-                {targetIcon && <img src={targetIcon} alt="" className="w-4 h-4 rounded-full" />}
-                {targetLabel}
-              </span>
-            )}
+            <ChainPill
+              chainId={targetChainId}
+              chains={CHAIN_LIST.filter(c => destChains.includes(c.id))}
+              onChange={handleTargetChange}
+              disabled={isActive}
+            />
           </div>
           <div className="bg-bg-dark rounded-xl border border-gray-700/50 px-4 py-3">
             <div className="flex items-center justify-between">
@@ -217,13 +245,19 @@ export function BridgeForm() {
           </div>
         </div>
 
-        {/* Fee info */}
+        {/* Fee info — dual display */}
         {amount && parseFloat(amount) > 0 && (
-          <div className="px-4 pb-3">
+          <div className="px-4 pb-3 space-y-1">
             <div className="flex justify-between text-xs text-gray-500">
-              <span>Fee ({feePercent}%)</span>
+              <span>Protocol Fee (0.6%)</span>
               <span className="font-mono">{fee} {token?.symbol}</span>
             </div>
+            {igpFeeNum > 0 && (
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>Hyperlane Gas Fee</span>
+                <span className="font-mono">{igpFeeNum.toFixed(6)} ETH</span>
+              </div>
+            )}
           </div>
         )}
 
@@ -231,7 +265,7 @@ export function BridgeForm() {
         <div className="p-4 pt-2">
           <button
             onClick={handleBridge}
-            disabled={!mounted || !isConnected || !token || !amount || parseFloat(amount) <= 0 || isActive}
+            disabled={!mounted || !isConnected || !token || !amount || parseFloat(amount) <= 0 || isActive || notDeployed}
             className="w-full py-3.5 rounded-xl font-sans font-semibold text-base transition-all disabled:opacity-40 disabled:cursor-not-allowed bg-accent text-bg-dark hover:bg-accent-dim"
             suppressHydrationWarning
           >
@@ -241,7 +275,18 @@ export function BridgeForm() {
       </div>
 
       {/* Status Tracker */}
-      <DepositTracker status={status} txHash={txHash} releaseTxHash={releaseTxHash} sourceChainId={bridgeSourceChainId} depositBlock={depositBlock} error={error} onReset={handleReset} confirmations={confirmations} requiredConfirmations={requiredConfirmations} />
+      <DepositTracker
+        status={status}
+        txHash={txHash}
+        messageId={messageId}
+        sourceChainId={bridgeSourceChainId}
+        destChainId={bridgeDestChainId}
+        depositBlock={depositBlock}
+        error={error}
+        onReset={handleReset}
+        confirmations={confirmations}
+        requiredConfirmations={requiredConfirmations}
+      />
 
       {/* Chain Block Heights */}
       <ChainStatus />
@@ -274,28 +319,6 @@ function ChainPill({
     return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  // Only 2 chains? Just show a button that swaps
-  if (chains.length <= 2) {
-    return (
-      <button
-        onClick={() => {
-          const other = chains.find((c) => c.id !== chainId);
-          if (other) onChange(other.id);
-        }}
-        disabled={disabled}
-        className={`text-xs font-semibold px-3 py-1 rounded-full border transition-colors disabled:opacity-50 flex items-center gap-1.5 ${
-          chainId === 56
-            ? 'bg-[#F3BA2F]/10 border-[#F3BA2F]/30 text-[#F3BA2F] hover:bg-[#F3BA2F]/20'
-            : 'bg-accent/10 border-accent/30 text-accent hover:bg-accent/20'
-        }`}
-      >
-        {current?.icon && <img src={current.icon} alt="" className="w-4 h-4 rounded-full" />}
-        {current?.label || `Chain ${chainId}`}
-      </button>
-    );
-  }
-
-  // Multiple chains: dropdown
   return (
     <div className="relative" ref={ref}>
       <button
@@ -308,7 +331,7 @@ function ChainPill({
         <span className="text-[10px]">&#9662;</span>
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 bg-card border border-gray-700 rounded-lg shadow-xl z-50 overflow-hidden min-w-[160px]">
+        <div className="absolute right-0 top-full mt-1 bg-card border border-gray-700 rounded-lg shadow-xl z-50 overflow-hidden min-w-[160px] max-h-[300px] overflow-y-auto">
           {chains.map((c) => (
             <button
               key={c.id}

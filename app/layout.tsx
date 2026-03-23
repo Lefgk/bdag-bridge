@@ -5,8 +5,8 @@ import bridgeConfig from '@/config/bridge-config.json';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'BlockDAG Bridge',
-  description: 'Bridge tokens to BlockDAG Network',
+  title: 'Prosperity Bridge',
+  description: 'Bridge tokens across chains with Prosperity Bridge',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

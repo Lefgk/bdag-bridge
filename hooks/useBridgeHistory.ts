@@ -3,23 +3,26 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAccount } from 'wagmi';
 import { decodeEventLog, formatUnits } from 'viem';
-import { BRIDGE_ERC20_ABI } from '@/lib/abi';
+import { PROSPERITY_BRIDGE_ABI } from '@/lib/abi';
 import { CONTRACTS } from '@/config/contracts';
 import { BRIDGE_TOKENS } from '@/config/tokens';
-import { BSC_CHAIN_ID, BDAG_CHAIN_ID, getRpc, getDestChainId, rpcCall, RELAYER_API } from '@/config/chainUtils';
+import { getRpc, rpcCall, getHyperlaneExplorerUrl, isPlaceholderAddress } from '@/config/chainUtils';
 import config from '@/config/bridge-config.json';
 
+const HISTORY_KEY = 'prosperity_bridge_history';
+
 export interface BridgeTx {
-  depositTxHash: string;
-  releaseTxHash?: string;
+  txHash: string;
+  messageId: string;
   sourceChainId: number;
-  targetChainId: number;
+  destChainId: number;
   token: string;
   tokenSymbol: string;
   amount: string;
-  depositNumber: bigint;
-  timestamp?: number;
-  released: boolean;
+  receiver: string;
+  timestamp: number;
+  delivered: boolean;
+  hyperlaneUrl: string;
 }
 
 function resolveTokenSymbol(tokenAddr: string, chainId: number): string {
@@ -53,51 +56,61 @@ export function useBridgeHistory() {
     setError(undefined);
 
     try {
-      const res = await fetch(`${RELAYER_API}/history?address=${address}`);
-      if (!res.ok) throw new Error('Relayer offline');
-      const data = await res.json();
-      const deposits: any[] = data.deposits || [];
+      const raw = localStorage.getItem(HISTORY_KEY);
+      const history: any[] = raw ? JSON.parse(raw) : [];
 
+      // Check delivery status for undelivered entries
       const results: BridgeTx[] = [];
+      for (const h of history) {
+        let delivered = h.delivered;
 
-      for (const d of deposits) {
-        const [srcStr, depStr] = d.key.split('_');
-        const sourceChainId = Number(srcStr);
-        const depositNumber = BigInt(depStr);
-
-        const txHash = d.tx_hash || '';
-        const isGoodRelease = txHash.startsWith('0x') && !txHash.startsWith('reverted:') && !txHash.startsWith('unconfirmed:') && txHash !== 'already-released';
-        const releaseTxHash = isGoodRelease ? txHash : undefined;
-        const released = isGoodRelease || txHash === 'already-released';
-
-        let amount = '-';
-        let tokenSymbol = '-';
-        if (d.token && d.amount) {
-          try {
-            const decimals = resolveTokenDecimals(d.token, sourceChainId);
-            amount = formatUnits(BigInt(d.amount), decimals);
-            tokenSymbol = resolveTokenSymbol(d.token, sourceChainId);
-          } catch { /* keep defaults */ }
+        // Re-check undelivered entries on-chain
+        if (!delivered && h.messageId && h.destChainId) {
+          const destBridge = CONTRACTS[h.destChainId]?.bridge;
+          if (destBridge && !isPlaceholderAddress(destBridge)) {
+            try {
+              const destRpc = getRpc(h.destChainId);
+              const data = '0x7dfd1c0c' + h.messageId.slice(2).padStart(64, '0');
+              const result = await rpcCall(destRpc, 'eth_call', [{ to: destBridge, data }, 'latest'], 5000);
+              delivered = !!(result && result !== '0x' + '0'.repeat(64));
+            } catch { /* keep current status */ }
+          }
         }
 
         results.push({
-          depositTxHash: d.deposit_tx || '',
-          releaseTxHash,
-          sourceChainId,
-          targetChainId: d.target_chain || getDestChainId(sourceChainId),
-          token: d.token || '',
-          tokenSymbol,
-          amount,
-          depositNumber,
-          timestamp: d.created_at || undefined,
-          released,
+          txHash: h.txHash,
+          messageId: h.messageId,
+          sourceChainId: h.sourceChainId,
+          destChainId: h.destChainId,
+          token: h.token || '',
+          tokenSymbol: h.tokenSymbol || 'Unknown',
+          amount: h.amount || '-',
+          receiver: h.receiver || '',
+          timestamp: h.timestamp || 0,
+          delivered,
+          hyperlaneUrl: h.messageId ? getHyperlaneExplorerUrl(h.messageId) : '',
         });
       }
 
-      results.sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
+      // Update localStorage with refreshed delivery statuses
+      const updated = results.map(r => ({
+        txHash: r.txHash,
+        messageId: r.messageId,
+        sourceChainId: r.sourceChainId,
+        destChainId: r.destChainId,
+        token: r.token,
+        tokenSymbol: r.tokenSymbol,
+        amount: r.amount,
+        receiver: r.receiver,
+        timestamp: r.timestamp,
+        delivered: r.delivered,
+      }));
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+
+      results.sort((a, b) => b.timestamp - a.timestamp);
       setTxs(results);
     } catch (err: any) {
-      setError(err.message || 'Failed to fetch history');
+      setError(err.message || 'Failed to load history');
     } finally {
       setLoading(false);
     }
@@ -108,74 +121,79 @@ export function useBridgeHistory() {
   return { txs, loading, error, refetch: fetchHistory };
 }
 
-// Standalone lookup by tx hash — still uses on-chain receipt (fast, single tx)
+/** Lookup a deposit by tx hash — searches all chains for the receipt. */
 export async function lookupDepositByTxHash(txHash: string): Promise<{
   sourceChainId: number;
-  targetChainId: number;
-  depositNumber: bigint;
+  destChainId: number;
+  messageId: string;
   tokenSymbol: string;
   amount: string;
   receiver: string;
-  released: boolean;
-  releaseTxHash?: string;
+  delivered: boolean;
+  hyperlaneUrl: string;
 } | null> {
   const chainIds = Object.keys(config.chains).map(Number);
+
   for (const chainId of chainIds) {
     try {
       const rpc = getRpc(chainId);
       const receipt = await rpcCall(rpc, 'eth_getTransactionReceipt', [txHash]);
       if (!receipt?.logs) continue;
 
-      const bridge = CONTRACTS[chainId]?.bridgeERC20;
+      const bridge = CONTRACTS[chainId]?.bridge;
       if (!bridge) continue;
 
       for (const log of receipt.logs) {
         if (log.address.toLowerCase() !== bridge.toLowerCase()) continue;
         try {
-          const decoded = decodeEventLog({ abi: BRIDGE_ERC20_ABI, data: log.data, topics: log.topics });
-          if (decoded.eventName === 'ERC20Deposited') {
+          const decoded = decodeEventLog({ abi: PROSPERITY_BRIDGE_ABI, data: log.data, topics: log.topics });
+          if (decoded.eventName === 'ERC20Deposited' || decoded.eventName === 'NativeDeposited') {
             const args = decoded.args as any;
-            const depositNumber = args.depositNumber as bigint;
-            const sourceChainId = Number(args.sourceChainId);
-            const targetChainId = Number(args.targetChainId);
-            const tokenAddr = args.token as string;
+            const messageId = args.messageId as string;
+            const destDomain = Number(args.destinationDomain);
             const amount = args.amount as bigint;
             const receiver = args.receiver as string;
-            const decimals = resolveTokenDecimals(tokenAddr, chainId);
 
-            // Check release status via on-chain call
-            const destChainId = getDestChainId(sourceChainId);
-            const destRpc = getRpc(destChainId);
-            const destBridge = CONTRACTS[destChainId]?.bridgeERC20;
-            let released = false;
-            let releaseTxHash: string | undefined;
-
-            if (destBridge) {
-              const data = '0x047a7fe5' +
-                sourceChainId.toString(16).padStart(64, '0') +
-                depositNumber.toString(16).padStart(64, '0');
-              const result = await rpcCall(destRpc, 'eth_call', [{ to: destBridge, data }, 'latest']);
-              released = result && result !== '0x' + '0'.repeat(64);
+            // Find destChainId from domain
+            let destChainId = destDomain;
+            for (const [cid, cdata] of Object.entries(config.chains)) {
+              if ((cdata as any).hyperlaneDomain === destDomain) {
+                destChainId = Number(cid);
+                break;
+              }
             }
 
-            // Try relayer API for release tx hash
-            if (released) {
+            let tokenSymbol = 'Unknown';
+            let decimals = 18;
+            if (decoded.eventName === 'ERC20Deposited') {
+              const tokenAddr = args.token as string;
+              tokenSymbol = resolveTokenSymbol(tokenAddr, chainId);
+              decimals = resolveTokenDecimals(tokenAddr, chainId);
+            } else {
+              tokenSymbol = 'Native';
+            }
+
+            // Check delivery status
+            let delivered = false;
+            const destBridge = CONTRACTS[destChainId]?.bridge;
+            if (destBridge && !isPlaceholderAddress(destBridge)) {
               try {
-                const res = await fetch(`${RELAYER_API}/check-tx/${txHash}`);
-                const d = await res.json();
-                if (d.releaseTxHash?.startsWith('0x')) releaseTxHash = d.releaseTxHash;
+                const destRpc = getRpc(destChainId);
+                const data = '0x7dfd1c0c' + messageId.slice(2).padStart(64, '0');
+                const result = await rpcCall(destRpc, 'eth_call', [{ to: destBridge, data }, 'latest']);
+                delivered = !!(result && result !== '0x' + '0'.repeat(64));
               } catch {}
             }
 
             return {
-              sourceChainId,
-              targetChainId,
-              depositNumber,
-              tokenSymbol: resolveTokenSymbol(tokenAddr, chainId),
+              sourceChainId: chainId,
+              destChainId,
+              messageId,
+              tokenSymbol,
               amount: formatUnits(amount, decimals),
               receiver,
-              released,
-              releaseTxHash,
+              delivered,
+              hyperlaneUrl: getHyperlaneExplorerUrl(messageId),
             };
           }
         } catch { /* skip */ }

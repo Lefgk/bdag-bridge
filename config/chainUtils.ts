@@ -1,10 +1,8 @@
 import config from './bridge-config.json';
 
-// Relayer API
-export const RELAYER_API = process.env.NEXT_PUBLIC_RELAYER_API || config.relayer.api;
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 
-export const BSC_CHAIN_ID = 56;
-export const BLAST_CHAIN_ID = 81457;
+// Chain ID constants
 export const BDAG_CHAIN_ID = 1404;
 
 // Build RPC lists from config
@@ -15,36 +13,44 @@ const RPC_LIST: Record<number, string[]> = Object.fromEntries(
 const rpcIndex: Record<number, number> = {};
 
 export function getRpc(chainId: number): string {
-  const list = RPC_LIST[chainId] || RPC_LIST[BSC_CHAIN_ID];
+  const list = RPC_LIST[chainId];
+  if (!list || list.length === 0) return '';
   const idx = rpcIndex[chainId] || 0;
   return list[idx % list.length];
 }
 
-/** Rotate to next RPC for a chain (call on RPC failure) */
 export function rotateRpc(chainId: number): string {
-  const list = RPC_LIST[chainId] || RPC_LIST[BSC_CHAIN_ID];
+  const list = RPC_LIST[chainId];
+  if (!list || list.length === 0) return '';
   const next = ((rpcIndex[chainId] || 0) + 1) % list.length;
   rpcIndex[chainId] = next;
   return list[next];
 }
 
-// Keep backward compat
-export const RPC: Record<number, string> = Object.fromEntries(
-  Object.entries(RPC_LIST).map(([chainId, list]) => [Number(chainId), list[0]])
-);
-
-export function getDestChainId(sourceChainId: number): number {
-  // All source chains bridge to BDAG; BDAG bridges back to BSC by default
-  return sourceChainId === BDAG_CHAIN_ID ? BSC_CHAIN_ID : BDAG_CHAIN_ID;
+/** Returns all configured chain IDs. */
+export function getConfiguredChainIds(): number[] {
+  return Object.keys(config.chains).map(Number);
 }
 
-/** Get all possible destination chains for a given source */
-export function getDestChains(sourceChainId: number): number[] {
-  if (sourceChainId === BDAG_CHAIN_ID) {
-    // BDAG can bridge to any non-BDAG chain
-    return Object.keys(config.chains).map(Number).filter(id => id !== BDAG_CHAIN_ID);
-  }
-  return [BDAG_CHAIN_ID];
+/** Returns all destination chains for a given source (every other chain). */
+export function getDestinationChains(sourceChainId: number): number[] {
+  return getConfiguredChainIds().filter(id => id !== sourceChainId);
+}
+
+/** Lookup Hyperlane domain ID for a chain. */
+export function getHyperlaneDomain(chainId: number): number {
+  const chain = config.chains[String(chainId) as keyof typeof config.chains] as any;
+  return chain?.hyperlaneDomain ?? chainId;
+}
+
+/** Build Hyperlane Explorer URL for a message ID. */
+export function getHyperlaneExplorerUrl(messageId: string): string {
+  return `${config.hyperlaneExplorer}/?search=${messageId}`;
+}
+
+/** Check if an address is the zero placeholder (contract not deployed yet). */
+export function isPlaceholderAddress(addr: string): boolean {
+  return !addr || addr === ZERO_ADDRESS;
 }
 
 export function chainName(chainId: number): string {
@@ -65,8 +71,6 @@ export function explorerTxUrl(hash: string, chainId: number): string {
 export function explorerLabel(chainId: number): string {
   const chain = config.chains[String(chainId) as keyof typeof config.chains];
   if (!chain) return 'Explorer';
-  if (chain.label === 'BSC') return 'BSCScan';
-  if (chain.label === 'Blast') return 'Blastscan';
   return `${chain.label}Scan`;
 }
 

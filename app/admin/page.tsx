@@ -3,50 +3,27 @@
 import { useState } from 'react';
 import { useAccount, useWriteContract, useReadContract } from 'wagmi';
 import { CONTRACTS } from '@/config/contracts';
-import { SOURCE_CHAINS } from '@/config/chains';
+import { SUPPORTED_CHAINS } from '@/config/chains';
+import { isPlaceholderAddress } from '@/config/chainUtils';
+import config from '@/config/bridge-config.json';
 
-const ADMIN_ADDR = '0xD2101105F4C8094a94FF878546bBEDAd8074C5e3';
+const ADMIN_ADDR = config.admin;
 
-// Minimal ABIs for admin functions
-const BRIDGE_ERC20_ADMIN_ABI = [
+// Minimal ABIs for admin functions (v7)
+const BRIDGE_ADMIN_ABI = [
   { inputs: [], name: 'paused', outputs: [{ type: 'bool' }], stateMutability: 'view', type: 'function' },
-  { inputs: [], name: 'relayer', outputs: [{ type: 'address' }], stateMutability: 'view', type: 'function' },
+  { inputs: [], name: 'feeRecipient', outputs: [{ type: 'address' }], stateMutability: 'view', type: 'function' },
   { inputs: [], name: 'defaultBridgeFee', outputs: [{ type: 'uint256' }], stateMutability: 'view', type: 'function' },
-  { inputs: [], name: 'admin', outputs: [{ type: 'address' }], stateMutability: 'view', type: 'function' },
-  { inputs: [{ name: '_relayer', type: 'address' }], name: 'setRelayer', outputs: [], stateMutability: 'nonpayable', type: 'function' },
   { inputs: [{ name: '_fee', type: 'uint256' }], name: 'setDefaultBridgeFee', outputs: [], stateMutability: 'nonpayable', type: 'function' },
   { inputs: [{ name: '_token', type: 'address' }, { name: '_fee', type: 'uint256' }], name: 'setTokenBridgeFee', outputs: [], stateMutability: 'nonpayable', type: 'function' },
+  { inputs: [{ name: '_recipient', type: 'address' }], name: 'setFeeRecipient', outputs: [], stateMutability: 'nonpayable', type: 'function' },
   { inputs: [{ name: '_sourceToken', type: 'address' }, { name: '_wrappedToken', type: 'address' }], name: 'setPeggedToken', outputs: [], stateMutability: 'nonpayable', type: 'function' },
-  { inputs: [{ name: '_newAdmin', type: 'address' }], name: 'proposeAdmin', outputs: [], stateMutability: 'nonpayable', type: 'function' },
-  { inputs: [], name: 'acceptAdmin', outputs: [], stateMutability: 'nonpayable', type: 'function' },
   { inputs: [], name: 'pause', outputs: [], stateMutability: 'nonpayable', type: 'function' },
   { inputs: [], name: 'unpause', outputs: [], stateMutability: 'nonpayable', type: 'function' },
 ] as const;
 
 const ROUTER_ADMIN_ABI = [
   { inputs: [], name: 'paused', outputs: [{ type: 'bool' }], stateMutability: 'view', type: 'function' },
-  { inputs: [], name: 'pause', outputs: [], stateMutability: 'nonpayable', type: 'function' },
-  { inputs: [], name: 'unpause', outputs: [], stateMutability: 'nonpayable', type: 'function' },
-] as const;
-
-const FEE_SPLITTER_ABI = [
-  { inputs: [], name: 'wallet1', outputs: [{ type: 'address' }], stateMutability: 'view', type: 'function' },
-  { inputs: [], name: 'wallet2', outputs: [{ type: 'address' }], stateMutability: 'view', type: 'function' },
-  { inputs: [], name: 'wallet3', outputs: [{ type: 'address' }], stateMutability: 'view', type: 'function' },
-  { inputs: [], name: 'share1', outputs: [{ type: 'uint256' }], stateMutability: 'view', type: 'function' },
-  { inputs: [], name: 'share2', outputs: [{ type: 'uint256' }], stateMutability: 'view', type: 'function' },
-  { inputs: [], name: 'share3', outputs: [{ type: 'uint256' }], stateMutability: 'view', type: 'function' },
-  { inputs: [{ name: '_w1', type: 'address' }, { name: '_w3', type: 'address' }], name: 'setWallets', outputs: [], stateMutability: 'nonpayable', type: 'function' },
-  { inputs: [{ name: '_s1', type: 'uint256' }, { name: '_s3', type: 'uint256' }], name: 'setShares', outputs: [], stateMutability: 'nonpayable', type: 'function' },
-] as const;
-
-const FEE_SPLITTER = '0x926b3E0cE457C2031AB1fCDB9ff9b1a7ca10bE02' as `0x${string}`;
-
-const LM_ADMIN_ABI = [
-  { inputs: [], name: 'paused', outputs: [{ type: 'bool' }], stateMutability: 'view', type: 'function' },
-  { inputs: [], name: 'defaultLiquidityWithdrawalFee', outputs: [{ type: 'uint256' }], stateMutability: 'view', type: 'function' },
-  { inputs: [{ name: '_fee', type: 'uint256' }], name: 'setDefaultWithdrawalFee', outputs: [], stateMutability: 'nonpayable', type: 'function' },
-  { inputs: [{ name: '_token', type: 'address' }, { name: '_fee', type: 'uint256' }], name: 'setTokenWithdrawalFee', outputs: [], stateMutability: 'nonpayable', type: 'function' },
   { inputs: [], name: 'pause', outputs: [], stateMutability: 'nonpayable', type: 'function' },
   { inputs: [], name: 'unpause', outputs: [], stateMutability: 'nonpayable', type: 'function' },
 ] as const;
@@ -67,6 +44,7 @@ export default function AdminPage() {
   const { address, isConnected, chainId } = useAccount();
   const { writeContractAsync } = useWriteContract();
   const contracts = chainId ? CONTRACTS[chainId] : undefined;
+  const deployed = contracts && !isPlaceholderAddress(contracts.bridge);
 
   // Toast state
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
@@ -76,146 +54,84 @@ export default function AdminPage() {
   };
 
   // Form state
-  const [relayerAddr, setRelayerAddr] = useState('');
   const [defaultFee, setDefaultFee] = useState('');
   const [tokenFeeAddr, setTokenFeeAddr] = useState('');
   const [tokenFeeVal, setTokenFeeVal] = useState('');
-  const [withdrawalFee, setWithdrawalFee] = useState('');
-  const [newAdminAddr, setNewAdminAddr] = useState('');
+  const [feeRecipientAddr, setFeeRecipientAddr] = useState('');
   const [srcToken, setSrcToken] = useState('');
   const [wrappedToken, setWrappedToken] = useState('');
-  const [fsW1, setFsW1] = useState('');
-  const [fsW3, setFsW3] = useState('');
-  const [fsS1, setFsS1] = useState('');
-  const [fsS3, setFsS3] = useState('');
 
   // Read contract state
+  const bridgeAddr = deployed ? contracts.bridge as `0x${string}` : undefined;
+  const routerAddr = deployed ? contracts.router as `0x${string}` : undefined;
+
   const { data: routerPaused } = useReadContract({
-    address: contracts?.router, abi: ROUTER_ADMIN_ABI, functionName: 'paused',
-    query: { enabled: !!contracts },
+    address: routerAddr, abi: ROUTER_ADMIN_ABI, functionName: 'paused',
+    query: { enabled: !!routerAddr },
   });
   const { data: bridgePaused } = useReadContract({
-    address: contracts?.bridgeERC20, abi: BRIDGE_ERC20_ADMIN_ABI, functionName: 'paused',
-    query: { enabled: !!contracts },
+    address: bridgeAddr, abi: BRIDGE_ADMIN_ABI, functionName: 'paused',
+    query: { enabled: !!bridgeAddr },
   });
-  const { data: lmPaused } = useReadContract({
-    address: contracts?.liquidityManager, abi: LM_ADMIN_ABI, functionName: 'paused',
-    query: { enabled: !!contracts },
-  });
-  const { data: currentRelayer } = useReadContract({
-    address: contracts?.bridgeERC20, abi: BRIDGE_ERC20_ADMIN_ABI, functionName: 'relayer',
-    query: { enabled: !!contracts },
+  const { data: currentFeeRecipient } = useReadContract({
+    address: bridgeAddr, abi: BRIDGE_ADMIN_ABI, functionName: 'feeRecipient',
+    query: { enabled: !!bridgeAddr },
   });
   const { data: currentBridgeFee } = useReadContract({
-    address: contracts?.bridgeERC20, abi: BRIDGE_ERC20_ADMIN_ABI, functionName: 'defaultBridgeFee',
-    query: { enabled: !!contracts },
+    address: bridgeAddr, abi: BRIDGE_ADMIN_ABI, functionName: 'defaultBridgeFee',
+    query: { enabled: !!bridgeAddr },
   });
-  const { data: currentWithdrawalFee } = useReadContract({
-    address: contracts?.liquidityManager, abi: LM_ADMIN_ABI, functionName: 'defaultLiquidityWithdrawalFee',
-    query: { enabled: !!contracts },
-  });
-
-  // FeeSplitter reads (BSC only, chainId=56)
-  const isBsc = chainId === 56;
-  const { data: fsWallet1 } = useReadContract({ address: FEE_SPLITTER, abi: FEE_SPLITTER_ABI, functionName: 'wallet1', chainId: 56, query: { enabled: isBsc } });
-  const { data: fsWallet2 } = useReadContract({ address: FEE_SPLITTER, abi: FEE_SPLITTER_ABI, functionName: 'wallet2', chainId: 56, query: { enabled: isBsc } });
-  const { data: fsWallet3 } = useReadContract({ address: FEE_SPLITTER, abi: FEE_SPLITTER_ABI, functionName: 'wallet3', chainId: 56, query: { enabled: isBsc } });
-  const { data: fsShare1 } = useReadContract({ address: FEE_SPLITTER, abi: FEE_SPLITTER_ABI, functionName: 'share1', chainId: 56, query: { enabled: isBsc } });
-  const { data: fsShare2 } = useReadContract({ address: FEE_SPLITTER, abi: FEE_SPLITTER_ABI, functionName: 'share2', chainId: 56, query: { enabled: isBsc } });
-  const { data: fsShare3 } = useReadContract({ address: FEE_SPLITTER, abi: FEE_SPLITTER_ABI, functionName: 'share3', chainId: 56, query: { enabled: isBsc } });
 
   const isAdmin = address?.toLowerCase() === ADMIN_ADDR.toLowerCase();
-  const chainName = SOURCE_CHAINS.find(c => c.id === chainId)?.label || (chainId === 1404 ? 'BlockDAG' : `Chain ${chainId}`);
+  const chainName = SUPPORTED_CHAINS.find(c => c.id === chainId)?.label || `Chain ${chainId}`;
 
   // ── Admin actions ──
-  async function doSetRelayer() {
-    if (!relayerAddr || !contracts) return;
-    try {
-      await writeContractAsync({ address: contracts.bridgeERC20, abi: BRIDGE_ERC20_ADMIN_ABI, functionName: 'setRelayer', args: [relayerAddr as `0x${string}`] });
-      showToast('Relayer updated', 'success');
-    } catch (e: any) { showToast(e.shortMessage || e.message, 'error'); }
-  }
-
   async function doSetDefaultFee() {
-    if (!defaultFee || !contracts) return;
+    if (!defaultFee || !bridgeAddr) return;
     try {
-      await writeContractAsync({ address: contracts.bridgeERC20, abi: BRIDGE_ERC20_ADMIN_ABI, functionName: 'setDefaultBridgeFee', args: [BigInt(defaultFee)] });
+      await writeContractAsync({ address: bridgeAddr, abi: BRIDGE_ADMIN_ABI, functionName: 'setDefaultBridgeFee', args: [BigInt(defaultFee)] });
       showToast('Default bridge fee updated', 'success');
     } catch (e: any) { showToast(e.shortMessage || e.message, 'error'); }
   }
 
   async function doSetTokenFee() {
-    if (!tokenFeeAddr || !tokenFeeVal || !contracts) return;
+    if (!tokenFeeAddr || !tokenFeeVal || !bridgeAddr) return;
     try {
-      await writeContractAsync({ address: contracts.bridgeERC20, abi: BRIDGE_ERC20_ADMIN_ABI, functionName: 'setTokenBridgeFee', args: [tokenFeeAddr as `0x${string}`, BigInt(tokenFeeVal)] });
+      await writeContractAsync({ address: bridgeAddr, abi: BRIDGE_ADMIN_ABI, functionName: 'setTokenBridgeFee', args: [tokenFeeAddr as `0x${string}`, BigInt(tokenFeeVal)] });
       showToast('Token fee updated', 'success');
     } catch (e: any) { showToast(e.shortMessage || e.message, 'error'); }
   }
 
-  async function doSetWithdrawalFee() {
-    if (!withdrawalFee || !contracts) return;
+  async function doSetFeeRecipient() {
+    if (!feeRecipientAddr || !bridgeAddr) return;
     try {
-      await writeContractAsync({ address: contracts.liquidityManager, abi: LM_ADMIN_ABI, functionName: 'setDefaultWithdrawalFee', args: [BigInt(withdrawalFee)] });
-      showToast('Withdrawal fee updated', 'success');
-    } catch (e: any) { showToast(e.shortMessage || e.message, 'error'); }
-  }
-
-  async function doProposeAdmin() {
-    if (!newAdminAddr || !contracts) return;
-    try {
-      await writeContractAsync({ address: contracts.bridgeERC20, abi: BRIDGE_ERC20_ADMIN_ABI, functionName: 'proposeAdmin', args: [newAdminAddr as `0x${string}`] });
-      showToast(`Admin proposal sent to ${newAdminAddr}`, 'success');
-    } catch (e: any) { showToast(e.shortMessage || e.message, 'error'); }
-  }
-
-  async function doAcceptAdmin() {
-    if (!contracts) return;
-    try {
-      await writeContractAsync({ address: contracts.bridgeERC20, abi: BRIDGE_ERC20_ADMIN_ABI, functionName: 'acceptAdmin' });
-      showToast('Admin role accepted', 'success');
+      await writeContractAsync({ address: bridgeAddr, abi: BRIDGE_ADMIN_ABI, functionName: 'setFeeRecipient', args: [feeRecipientAddr as `0x${string}`] });
+      showToast('Fee recipient updated', 'success');
     } catch (e: any) { showToast(e.shortMessage || e.message, 'error'); }
   }
 
   async function doSetPeggedToken() {
-    if (!srcToken || !wrappedToken || !contracts) return;
+    if (!srcToken || !wrappedToken || !bridgeAddr) return;
     try {
-      await writeContractAsync({ address: contracts.bridgeERC20, abi: BRIDGE_ERC20_ADMIN_ABI, functionName: 'setPeggedToken', args: [srcToken as `0x${string}`, wrappedToken as `0x${string}`] });
+      await writeContractAsync({ address: bridgeAddr, abi: BRIDGE_ADMIN_ABI, functionName: 'setPeggedToken', args: [srcToken as `0x${string}`, wrappedToken as `0x${string}`] });
       showToast('Pegged token mapping set', 'success');
     } catch (e: any) { showToast(e.shortMessage || e.message, 'error'); }
   }
 
-  async function doSetFsWallets() {
-    if (!fsW1 || !fsW3) return;
-    try {
-      await writeContractAsync({ address: FEE_SPLITTER, abi: FEE_SPLITTER_ABI, functionName: 'setWallets', args: [fsW1 as `0x${string}`, fsW3 as `0x${string}`] });
-      showToast('FeeSplitter wallets updated', 'success');
-    } catch (e: any) { showToast(e.shortMessage || e.message, 'error'); }
-  }
-
-  async function doSetFsShares() {
-    if (!fsS1 || !fsS3) return;
-    try {
-      await writeContractAsync({ address: FEE_SPLITTER, abi: FEE_SPLITTER_ABI, functionName: 'setShares', args: [BigInt(fsS1), BigInt(fsS3)] });
-      showToast('FeeSplitter shares updated', 'success');
-    } catch (e: any) { showToast(e.shortMessage || e.message, 'error'); }
-  }
-
   async function doPauseAll() {
-    if (!contracts) return;
+    if (!bridgeAddr || !routerAddr) return;
     try {
-      await writeContractAsync({ address: contracts.router, abi: ROUTER_ADMIN_ABI, functionName: 'pause' });
-      await writeContractAsync({ address: contracts.bridgeERC20, abi: BRIDGE_ERC20_ADMIN_ABI, functionName: 'pause' });
-      await writeContractAsync({ address: contracts.liquidityManager, abi: LM_ADMIN_ABI, functionName: 'pause' });
+      await writeContractAsync({ address: routerAddr, abi: ROUTER_ADMIN_ABI, functionName: 'pause' });
+      await writeContractAsync({ address: bridgeAddr, abi: BRIDGE_ADMIN_ABI, functionName: 'pause' });
       showToast('All contracts paused', 'success');
     } catch (e: any) { showToast(e.shortMessage || e.message, 'error'); }
   }
 
   async function doUnpauseAll() {
-    if (!contracts) return;
+    if (!bridgeAddr || !routerAddr) return;
     try {
-      await writeContractAsync({ address: contracts.router, abi: ROUTER_ADMIN_ABI, functionName: 'unpause' });
-      await writeContractAsync({ address: contracts.bridgeERC20, abi: BRIDGE_ERC20_ADMIN_ABI, functionName: 'unpause' });
-      await writeContractAsync({ address: contracts.liquidityManager, abi: LM_ADMIN_ABI, functionName: 'unpause' });
+      await writeContractAsync({ address: routerAddr, abi: ROUTER_ADMIN_ABI, functionName: 'unpause' });
+      await writeContractAsync({ address: bridgeAddr, abi: BRIDGE_ADMIN_ABI, functionName: 'unpause' });
       showToast('All contracts unpaused', 'success');
     } catch (e: any) { showToast(e.shortMessage || e.message, 'error'); }
   }
@@ -236,37 +152,13 @@ export default function AdminPage() {
           <p className="text-xs text-gray-500 mt-1">
             Connected to: <span className="text-white">{chainName}</span>
             {!isAdmin && <span className="text-red-400 ml-2">(Not admin wallet)</span>}
+            {!deployed && <span className="text-yellow-400 ml-2">(Bridge not deployed on this chain)</span>}
           </p>
         )}
       </div>
 
       {/* Admin Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-
-        {/* Relayer Management */}
-        <div className="bg-card rounded-xl p-5 border border-gray-800">
-          <h4 className="text-sm font-sans font-semibold text-white mb-4 flex items-center gap-2">
-            <span className="text-purple-400">&#9670;</span> Relayer Management
-          </h4>
-          <div className="space-y-3">
-            <div>
-              <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1">Current Relayer</label>
-              <p className="text-xs font-mono text-accent break-all">{currentRelayer || 'Not set'}</p>
-            </div>
-            <div>
-              <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1">Set Relayer Address</label>
-              <input
-                type="text" value={relayerAddr} onChange={e => setRelayerAddr(e.target.value)}
-                placeholder="0x..."
-                className="w-full bg-bg-dark border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:border-accent focus:outline-none"
-              />
-            </div>
-            <button onClick={doSetRelayer} disabled={!isAdmin}
-              className="w-full py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-accent to-cyan-400 text-bg-dark disabled:opacity-30">
-              Set Relayer
-            </button>
-          </div>
-        </div>
 
         {/* Fee Management */}
         <div className="bg-card rounded-xl p-5 border border-gray-800">
@@ -276,6 +168,20 @@ export default function AdminPage() {
           <div className="space-y-3">
             <div>
               <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1">
+                Fee Recipient <span className="text-gray-600">{currentFeeRecipient ? `(${String(currentFeeRecipient).slice(0, 8)}...)` : ''}</span>
+              </label>
+              <input type="text" value={feeRecipientAddr} onChange={e => setFeeRecipientAddr(e.target.value)}
+                placeholder="0x..."
+                className="w-full bg-bg-dark border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:border-accent focus:outline-none"
+              />
+            </div>
+            <button onClick={doSetFeeRecipient} disabled={!isAdmin || !deployed}
+              className="w-full py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-yellow-500 to-orange-500 text-bg-dark disabled:opacity-30">
+              Set Fee Recipient
+            </button>
+
+            <div className="pt-2 border-t border-gray-800">
+              <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1">
                 Default Bridge Fee (PPM) <span className="text-gray-600">current: {currentBridgeFee?.toString() || '—'}</span>
               </label>
               <input type="number" value={defaultFee} onChange={e => setDefaultFee(e.target.value)}
@@ -283,8 +189,8 @@ export default function AdminPage() {
                 className="w-full bg-bg-dark border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:border-accent focus:outline-none"
               />
             </div>
-            <button onClick={doSetDefaultFee} disabled={!isAdmin}
-              className="w-full py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-yellow-500 to-orange-500 text-bg-dark disabled:opacity-30">
+            <button onClick={doSetDefaultFee} disabled={!isAdmin || !deployed}
+              className="w-full py-2 rounded-lg text-sm font-semibold border border-gray-600 text-gray-300 hover:border-gray-400 disabled:opacity-30">
               Set Default Fee
             </button>
 
@@ -299,48 +205,9 @@ export default function AdminPage() {
                 className="w-full bg-bg-dark border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:border-accent focus:outline-none mt-2"
               />
             </div>
-            <button onClick={doSetTokenFee} disabled={!isAdmin}
+            <button onClick={doSetTokenFee} disabled={!isAdmin || !deployed}
               className="w-full py-2 rounded-lg text-sm font-semibold border border-gray-600 text-gray-300 hover:border-gray-400 disabled:opacity-30">
               Set Token Fee
-            </button>
-
-            <div className="pt-2 border-t border-gray-800">
-              <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1">
-                Default Withdrawal Fee (PPM) <span className="text-gray-600">current: {currentWithdrawalFee?.toString() || '—'}</span>
-              </label>
-              <input type="number" value={withdrawalFee} onChange={e => setWithdrawalFee(e.target.value)}
-                placeholder="3000 = 0.3%"
-                className="w-full bg-bg-dark border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:border-accent focus:outline-none"
-              />
-            </div>
-            <button onClick={doSetWithdrawalFee} disabled={!isAdmin}
-              className="w-full py-2 rounded-lg text-sm font-semibold border border-gray-600 text-gray-300 hover:border-gray-400 disabled:opacity-30">
-              Set Withdrawal Fee
-            </button>
-          </div>
-        </div>
-
-        {/* Admin Transfer */}
-        <div className="bg-card rounded-xl p-5 border border-gray-800">
-          <h4 className="text-sm font-sans font-semibold text-white mb-2 flex items-center gap-2">
-            <span className="text-red-400">&#9670;</span> Admin Transfer
-          </h4>
-          <p className="text-[11px] text-gray-500 mb-4">Two-step transfer: propose then accept from new wallet.</p>
-          <div className="space-y-3">
-            <div>
-              <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1">Propose New Admin</label>
-              <input type="text" value={newAdminAddr} onChange={e => setNewAdminAddr(e.target.value)}
-                placeholder="0x..."
-                className="w-full bg-bg-dark border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:border-accent focus:outline-none"
-              />
-            </div>
-            <button onClick={doProposeAdmin} disabled={!isAdmin}
-              className="w-full py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-red-500 to-pink-500 text-white disabled:opacity-30">
-              Propose Admin
-            </button>
-            <button onClick={doAcceptAdmin}
-              className="w-full py-2 rounded-lg text-sm font-semibold border border-gray-600 text-gray-300 hover:border-gray-400">
-              Accept Admin (call from new wallet)
             </button>
           </div>
         </div>
@@ -365,7 +232,7 @@ export default function AdminPage() {
                 className="w-full bg-bg-dark border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:border-accent focus:outline-none"
               />
             </div>
-            <button onClick={doSetPeggedToken} disabled={!isAdmin}
+            <button onClick={doSetPeggedToken} disabled={!isAdmin || !deployed}
               className="w-full py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-amber-500 to-yellow-400 text-bg-dark disabled:opacity-30">
               Set Pegged Token
             </button>
@@ -379,88 +246,30 @@ export default function AdminPage() {
           </h4>
           <p className="text-[11px] text-gray-500 mb-4">Pause all bridging operations in an emergency.</p>
           <div className="space-y-3">
-            <button onClick={doPauseAll} disabled={!isAdmin}
+            <button onClick={doPauseAll} disabled={!isAdmin || !deployed}
               className="w-full py-3 rounded-lg text-sm font-semibold bg-red-500 text-white hover:bg-red-600 disabled:opacity-30">
               Pause All Contracts
             </button>
-            <button onClick={doUnpauseAll} disabled={!isAdmin}
+            <button onClick={doUnpauseAll} disabled={!isAdmin || !deployed}
               className="w-full py-3 rounded-lg text-sm font-semibold border border-emerald-500 text-emerald-400 hover:bg-emerald-500/10 disabled:opacity-30">
               Unpause All Contracts
             </button>
 
             <div className="pt-3 space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-400">Router status</span>
+                <span className="text-gray-400">Router</span>
                 <span className={routerPaused ? 'text-red-400' : 'text-emerald-400'}>
-                  {routerPaused ? '● Paused' : '● Active'}
+                  {routerPaused === undefined ? '—' : routerPaused ? 'Paused' : 'Active'}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-400">BridgeERC20 status</span>
+                <span className="text-gray-400">Bridge</span>
                 <span className={bridgePaused ? 'text-red-400' : 'text-emerald-400'}>
-                  {bridgePaused ? '● Paused' : '● Active'}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-400">LiquidityManager status</span>
-                <span className={lmPaused ? 'text-red-400' : 'text-emerald-400'}>
-                  {lmPaused ? '● Paused' : '● Active'}
+                  {bridgePaused === undefined ? '—' : bridgePaused ? 'Paused' : 'Active'}
                 </span>
               </div>
             </div>
           </div>
-        </div>
-
-        {/* FeeSplitter (BSC only) */}
-        <div className="bg-card rounded-xl p-5 border border-gray-800">
-          <h4 className="text-sm font-sans font-semibold text-white mb-2 flex items-center gap-2">
-            <span className="text-green-400">&#9679;</span> Fee Splitter
-            {!isBsc && <span className="text-xs text-gray-500">(switch to BSC)</span>}
-          </h4>
-          <p className="text-[11px] text-gray-500 mb-3">BSC: {FEE_SPLITTER}</p>
-
-          {isBsc && (
-            <div className="space-y-3">
-              <div className="space-y-1.5 text-xs">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Wallet 1 ({fsShare1 ? `${Number(fsShare1) / 10000}%` : '—'})</span>
-                  <span className="text-gray-300 font-mono truncate ml-2 max-w-[180px]">{fsWallet1 || '—'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Wallet 2 ({fsShare2 ? `${Number(fsShare2) / 10000}%` : '—'}) <span className="text-red-400">locked</span></span>
-                  <span className="text-gray-300 font-mono truncate ml-2 max-w-[180px]">{fsWallet2 || '—'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Wallet 3 ({fsShare3 ? `${Number(fsShare3) / 10000}%` : '—'})</span>
-                  <span className="text-gray-300 font-mono truncate ml-2 max-w-[180px]">{fsWallet3 || '—'}</span>
-                </div>
-              </div>
-
-              <div className="pt-2 border-t border-gray-800">
-                <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1">Set Wallets (wallet1 only)</label>
-                <input type="text" value={fsW1} onChange={e => setFsW1(e.target.value)} placeholder="Wallet 1 address"
-                  className="w-full bg-bg-dark border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:border-accent focus:outline-none" />
-                <input type="text" value={fsW3} onChange={e => setFsW3(e.target.value)} placeholder="Wallet 3 address"
-                  className="w-full bg-bg-dark border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:border-accent focus:outline-none mt-2" />
-              </div>
-              <button onClick={doSetFsWallets}
-                className="w-full py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-green-500 to-emerald-400 text-bg-dark disabled:opacity-30">
-                Set Wallets
-              </button>
-
-              <div className="pt-2 border-t border-gray-800">
-                <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1">Set Shares (PPM, s1+s3 must = 600,000)</label>
-                <input type="number" value={fsS1} onChange={e => setFsS1(e.target.value)} placeholder="Share 1 (e.g. 500000 = 50%)"
-                  className="w-full bg-bg-dark border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:border-accent focus:outline-none" />
-                <input type="number" value={fsS3} onChange={e => setFsS3(e.target.value)} placeholder="Share 3 (e.g. 100000 = 10%)"
-                  className="w-full bg-bg-dark border border-gray-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:border-accent focus:outline-none mt-2" />
-              </div>
-              <button onClick={doSetFsShares}
-                className="w-full py-2 rounded-lg text-sm font-semibold border border-gray-600 text-gray-300 hover:border-gray-400 disabled:opacity-30">
-                Set Shares
-              </button>
-            </div>
-          )}
         </div>
 
         {/* Deployed Contracts */}
@@ -474,12 +283,8 @@ export default function AdminPage() {
               <p className="text-[11px] font-mono text-gray-300 break-all">{contracts?.router || 'Not deployed'}</p>
             </div>
             <div>
-              <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1">Bridge ERC20</label>
-              <p className="text-[11px] font-mono text-gray-300 break-all">{contracts?.bridgeERC20 || 'Not deployed'}</p>
-            </div>
-            <div>
-              <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1">Liquidity Manager</label>
-              <p className="text-[11px] font-mono text-gray-300 break-all">{contracts?.liquidityManager || 'Not deployed'}</p>
+              <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1">Bridge</label>
+              <p className="text-[11px] font-mono text-gray-300 break-all">{contracts?.bridge || 'Not deployed'}</p>
             </div>
           </div>
         </div>

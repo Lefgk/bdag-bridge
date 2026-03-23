@@ -1,0 +1,161 @@
+{
+  "blockdag_1404": {
+    "explorer": "https://bdagscan.com",
+    "tokens": {
+      "WUSDCFE": { "name": "Wrapped USDC From Ethereum", "address": "0x3bEe7e036A5B70E8C4d822E26C1526995E509d49", "decimals": 18, "origin": "ethereum" },
+      "WUSDTFE": { "name": "Wrapped USDT From Ethereum", "address": "0x30cF410d7aBb06D9E6BbE73D54A327847dF81225", "decimals": 18, "origin": "ethereum" },
+      "WETHFE": { "name": "Wrapped Ethereum From Ethereum", "address": "0x0d54B02E7c54F757ae4610fE43FFd7945e50D89a", "decimals": 18, "origin": "ethereum" },
+      "WBTCF": { "name": "Wrapped Bitcoin From Ethereum", "address": "0xFC96f27FEcEE353FBb4385D07d79342D518768Fa", "decimals": 18, "origin": "ethereum" },
+      "USDe": { "name": "Wrapped Ethena USDe From Ethereum", "address": "0x9407c028d36d3486bB2246c53Df2170C95e2fE48", "decimals": 18, "origin": "ethereum" },
+      "WCWBTCFE": { "name": "Wrapped Coinbase Wrapped BTC From Ethereum", "address": "0xce2c2c472CF5B7C80271c63930335403176e131C", "decimals": 18, "origin": "ethereum" },
+      "WTGFE": { "name": "Wrapped Tether Gold From Ethereum", "address": "0xBF920d6174C6d0AAe42013043D36E305AB67cc83", "decimals": 18, "origin": "ethereum" },
+      "WAAVE": { "name": "Wrapped Aave From Ethereum", "address": "0x6b99ef12adeda4e21a93244ca95ebbeabe17c857", "decimals": 18, "origin": "ethereum" },
+      "WDAIFE": { "name": "Wrapped Dai From Ethereum", "address": "0x19fee28e44c4bd8321326598eaf5dd00982638ba", "decimals": 18, "origin": "ethereum" },
+      "WEURC": { "name": "Wrapped Euro Coin From Ethereum", "address": "0x93857e34b73c0bdd2ff60e9febf8174af3a6e30e", "decimals": 18, "origin": "ethereum" },
+      "WLINKFE": { "name": "Wrapped Chainlink From Ethereum", "address": "0xd9d26ab880731e2a7e47b970b50e0771e0d6a897", "decimals": 18, "origin": "ethereum" },
+      "WMUSD": { "name": "Wrapped MetaMask USD From Ethereum", "address": "0x2c7c62bf29c197cde01d77a8d8e9aba06791dc0f", "decimals": 18, "origin": "ethereum" },
+      "WPAXG": { "name": "Wrapped PaxGold From Ethereum", "address": "0xfdac5f317acb2bb2fc287aab003961c6b391aec2", "decimals": 18, "origin": "ethereum" },
+      "WRLUSD": { "name": "Wrapped RLUSD From Ethereum", "address": "0x9cc1f8f3f61ddcf0490c1483112119c8ab9ecb9d", "decimals": 18, "origin": "ethereum" },
+      "WSOLFE": { "name": "Wrapped Solana From Ethereum", "address": "0x98a39e019faec6a6a195c8896513eccc9a2f98b5", "decimals": 18, "origin": "ethereum" },
+      "WUNI": { "name": "Wrapped Uniswap From Ethereum", "address": "0x1ec4b67d16cf5620076f9c52c150d58d16b228a2", "decimals": 18, "origin": "ethereum" },
+      "WUSD1FE": { "name": "Wrapped USD1 From Ethereum", "address": "0xf340f12c6d6abd1d39ff65a756e1cbc83f5c7ab6", "decimals": 18, "origin": "ethereum" },
+      "WWLD": { "name": "Wrapped Worldcoin From Ethereum", "address": "0x191acce735c6e22046315c0efdc34602364afd11", "decimals": 18, "origin": "ethereum" },
+      "WWLFIFE": { "name": "Wrapped WLFI From Ethereum", "address": "0xad082cef1f740fb32fadc636aebec3de63245988", "decimals": 18, "origin": "ethereum" },
+      "WZRO": { "name": "Wrapped Layer Zero From Ethereum", "address": "0xf63639f788c4f8eb553fa1898f5e4c63b15523a4", "decimals": 18, "origin": "ethereum" },
+      "WADAFB": { "name": "Wrapped Cardano From BNB Chain", "address": "0x3610b7e28770b498d98238ca62b445370106977d", "decimals": 18, "origin": "bnb" },
+      "WASTRFB": { "name": "Wrapped Aster From BNB Chain", "address": "0x29e69889f86c77a89ece5cb0edc5ac1efda0d024", "decimals": 18, "origin": "bnb" },
+      "WBCHFB": { "name": "Wrapped Bitcoin Cash From BNB Chain", "address": "0xb17cc999e45c65aa14fd0c4d5321384945014c7e", "decimals": 18, "origin": "bnb" },
+      "WBTCBFB": { "name": "Wrapped BTCB From BNB Chain", "address": "0x5858ad64d69f71a5b876d68044bced612710f56f", "decimals": 18, "origin": "bnb" },
+      "WDOGEFB": { "name": "Wrapped Dogecoin From BNB Chain", "address": "0x6fe86b96a41f369ad002e329c72f5f04c41cd01a", "decimals": 18, "origin": "bnb" },
+      "WDOTFB": { "name": "Wrapped Polkadot From BNB Chain", "address": "0xa689129b6882428e9794cc412595826df6008749", "decimals": 18, "origin": "bnb" },
+      "WETHFB": { "name": "Wrapped Ethereum From BNB Chain", "address": "0x51dbd88aec27f81d24f121509def63b379389204", "decimals": 18, "origin": "bnb" },
+      "WLINKFB": { "name": "Wrapped Chainlink From BNB Chain", "address": "0xae824598438658e3c6351f1f48110884f5c8e159", "decimals": 18, "origin": "bnb" },
+      "WSOLFB": { "name": "Wrapped Solana From BNB Chain", "address": "0x78d974a5e3987e6061e297ebf7b05d581e54e08b", "decimals": 18, "origin": "bnb" },
+      "WTUSDFB": { "name": "Wrapped True USD From BNB Chain", "address": "0x7a5bfd24cda7e04a702febc397c9296b8f6690dc", "decimals": 18, "origin": "bnb" },
+      "WUSD1FB": { "name": "Wrapped USD1 From BNB Chain", "address": "0x9b87c3cebf24f3035f6aef28f2fea549537a3366", "decimals": 18, "origin": "bnb" },
+      "WUSDCFB": { "name": "Wrapped USDC From BNB Chain", "address": "0xe454ecf5ed2aa5365ec11f9e246934b679d3261c", "decimals": 18, "origin": "bnb" },
+      "WUSDTFB": { "name": "Wrapped USDT From BNB Chain", "address": "0x91457e7e54229939090De72E28CC0e66f11c60e9", "decimals": 18, "origin": "bnb" },
+      "WTRXFB": { "name": "Wrapped Tron From BNB Chain", "address": "0x2D586C7D69C632395Ce09bB273046462e8dAD762", "decimals": 18, "origin": "bnb" },
+      "WBNBFB": { "name": "Wrapped BNB From BNB Chain", "address": "0x1979d14ffb8113b7702df61324dd952afb4ae5bd", "decimals": 18, "origin": "bnb" },
+      "WWLFIFB": { "name": "Wrapped WLFI From BNB Chain", "address": "0xd1763a521a0dbe5d6898e105401ede91852dd637", "decimals": 18, "origin": "bnb" },
+      "WXRPFB": { "name": "Wrapped XRP From BNB Chain", "address": "0x42b96a629d75c62c72eceeec63f611be52c3e3e2", "decimals": 18, "origin": "bnb" },
+      "WCBBTCFBASE": { "name": "Wrapped Coinbase Wrapped BTC From Base", "address": "0x0a89190c15c16f5fa529c13b8f9173fa24236ab5", "decimals": 18, "origin": "base" },
+      "WDAIFPOLY": { "name": "Wrapped Dai From Polygon", "address": "0x3ed68bc18dcb6e58467f4b857db4ade6c2c61d28", "decimals": 18, "origin": "polygon" },
+      "WETHFARB": { "name": "Wrapped Ethereum From Arbitrum", "address": "0x3545a7582ca0802b0c160b83ec4efdebc61a03b1", "decimals": 18, "origin": "arbitrum" },
+      "WETHFBASE": { "name": "Wrapped Ethereum From Base", "address": "0x7d02d684c3d61ab5bd7974bd53f145fdc54c9f1e", "decimals": 18, "origin": "base" },
+      "WETHFBLAST": { "name": "Wrapped Ethereum From Blast", "address": "0x3272fe1fb6598d88003b57b86fd6eeb21a3cd44d", "decimals": 18, "origin": "blast" },
+      "WETHFAVAX": { "name": "Wrapped Ethereum From Avalanche", "address": "0x6954f1b3d05e8ff56008996f496f937113151a42", "decimals": 18, "origin": "avalanche" },
+      "WETHFPOLY": { "name": "Wrapped Ethereum From Polygon", "address": "0x2199526ab2c723bd1a398023fd39988fe6764667", "decimals": 18, "origin": "polygon" },
+      "WKTAFBASE": { "name": "Wrapped KTA From Base", "address": "0x050c92d1eb3b646ce954ce85bc28c15e263e5e30", "decimals": 18, "origin": "base" },
+      "WPOLFPOLY": { "name": "Wrapped POL From Polygon", "address": "0x3a6da54e796eebc1665dd07cc2526491733c9410", "decimals": 18, "origin": "polygon" },
+      "WUSDBFBLAST": { "name": "Wrapped USDB From Blast", "address": "0x3e4569732be57af6d0a898f93c0cc0a50a644672", "decimals": 18, "origin": "blast" },
+      "WUSDCFARB": { "name": "Wrapped USDC From Arbitrum", "address": "0x8ed5d43a5c053a8d2be7c36de2b2ea46dfed9cea", "decimals": 18, "origin": "arbitrum" },
+      "WUSDCEFPOLY": { "name": "Wrapped Bridged USDC From Polygon", "address": "0xf5ffe3eaff342ae22515ee952290acdfcd27ed45", "decimals": 18, "origin": "polygon" },
+      "WUSDCFAVAX": { "name": "Wrapped USDC From Avalanche", "address": "0x657a20c2a685378b80294d17b257ac9e2e169f06", "decimals": 18, "origin": "avalanche" },
+      "WUSDCFBASE": { "name": "Wrapped USDC From Base", "address": "0xab33414440e4799d202a0869d7b911901cb9b8e7", "decimals": 18, "origin": "base" },
+      "WUSDCFPOLY": { "name": "Wrapped USDC From Polygon", "address": "0xbd4767b2546e7d648a71ebe5fcbe888d734febe3", "decimals": 18, "origin": "polygon" },
+      "WUSDCFSONIC": { "name": "Wrapped USDC From Sonic", "address": "0x18a7a445a513a09c1b5c4cc5fc44174fbbb13615", "decimals": 18, "origin": "sonic" },
+      "WUSDTFAVAX": { "name": "Wrapped USDT From Avalanche", "address": "0x64289582f28a89621ccfa78bc975c6e006e846c8", "decimals": 18, "origin": "avalanche" },
+      "WUSDTFPOLY": { "name": "Wrapped USDT From Polygon", "address": "0x71c03da37db89f9aca81cf95f02a2a494a79b5d1", "decimals": 18, "origin": "polygon" },
+      "WAVAXFAVAX": { "name": "Wrapped Avax From Avalanche", "address": "0xe3e21a6dc736b9ec141a14eb4cd583682c3d07cd", "decimals": 18, "origin": "avalanche" },
+      "WSONICFSONIC": { "name": "Wrapped Sonic From Sonic", "address": "0x496e46ae1b66a2d3d233189842a2eace8412d70d", "decimals": 18, "origin": "sonic" }
+    }
+  },
+  "ethereum_1": {
+    "explorer": "https://etherscan.io",
+    "tokens": {
+      "USDC": { "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", "decimals": 6 },
+      "USDT": { "address": "0xdAC17F958D2ee523a2206206994597C13D831ec7", "decimals": 6 },
+      "WETH": { "address": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", "decimals": 18 },
+      "WBTC": { "address": "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", "decimals": 8 },
+      "USDe": { "address": "0x4c9EDD5852cd905f086C759E8383e09bff1E68B3", "decimals": 18 },
+      "cbBTC": { "address": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf", "decimals": 8 },
+      "XAUT": { "address": "0x68749665FF8D2d112Fa859AA293F07A622782F38", "decimals": 6 },
+      "LINK": { "address": "0x514910771AF9Ca656af840dff83E8264EcF986CA", "decimals": 18 },
+      "DAI": { "address": "0x6B175474E89094C44Da98b954EedeAC495271d0F", "decimals": 18 },
+      "PAXG": { "address": "0x45804880De22913dAFE09f4980848ECE6EcbAf78", "decimals": 18 },
+      "EURC": { "address": "0x1aBaEA1f7C830bD89Acc67eC4af516284b1bC33c", "decimals": 6 },
+      "RLUSD": { "address": "0x8292Bb45bf1Ee4d140127049757C2E0fF06317eD", "decimals": 18 },
+      "UNI": { "address": "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984", "decimals": 18 },
+      "AAVE": { "address": "0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9", "decimals": 18 },
+      "mUSD": { "address": "0xacA92E438df0B2401fF60dA7E4337B687a2435DA", "decimals": 18 },
+      "WLFI": { "address": "0xdA5e1988097297dCdc1f90D4dFE7909e847CBeF6", "decimals": 18 },
+      "SOL": { "address": "0xD31a59c85aE9D8edEFeC411D448f90841571b89c", "decimals": 9 },
+      "USD1": { "address": "0x8d0D000Ee44948FC98c9B98A4FA4921476f08B0d", "decimals": 18 },
+      "WLD": { "address": "0x163f8C2467924be0ae7B5347228CABF260318753", "decimals": 18 },
+      "ZRO": { "address": "0x6985884C4392D348587B19cb9eAAf157F13271cd", "decimals": 18 }
+    }
+  },
+  "bnb_56": {
+    "explorer": "https://bscscan.com",
+    "tokens": {
+      "USDT": { "address": "0x55d398326f99059fF775485246999027B3197955", "decimals": 18 },
+      "WBNB": { "address": "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c", "decimals": 18 },
+      "BTCB": { "address": "0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c", "decimals": 18 },
+      "ETH": { "address": "0x2170Ed0880ac9A755fd29B2688956BD959F933F8", "decimals": 18 },
+      "USD1": { "address": "0x8d0D000Ee44948FC98c9B98A4FA4921476f08B0d", "decimals": 18 },
+      "USDC": { "address": "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d", "decimals": 18 },
+      "ASTR": { "address": "0x000ae314e2a2172a039b26378814c252734f556a", "decimals": 18 },
+      "SOL": { "address": "0x570A5D26f7765Ecb712C0924E4De545B89fD43dF", "decimals": 18 },
+      "XRP": { "address": "0x1D2F0da169ceB9fC7B3144628dB156f3F6c60dBE", "decimals": 18 },
+      "DOGE": { "address": "0xbA2aE424d960c26247Dd6c32edC70B295c744C43", "decimals": 8 },
+      "WLFI": { "address": "0x47474747477b199288bf72a1d702f7fe0fb1deea", "decimals": 18 },
+      "ADA": { "address": "0x3EE2200Efb3400fAbB9AacF31297cBdD1d435D47", "decimals": 18 },
+      "TRX": { "address": "0xCE7de646e7208a4Ef112cb6ed5038FA6cC6b12e3", "decimals": 6 },
+      "BCH": { "address": "0x8fF795a6F4D97E7887C79beA79aba5cc76444aDf", "decimals": 18 },
+      "LINK": { "address": "0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD", "decimals": 18 },
+      "DOT": { "address": "0x7083609fCE4d1d8Dc0C979AAb8c869Ea2C873402", "decimals": 18 },
+      "TUSD": { "address": "0x40af3827F39D0EAcBF4A168f8D4ee67c121D11c9", "decimals": 18 }
+    }
+  },
+  "blast_81457": {
+    "explorer": "https://blastscan.io",
+    "tokens": {
+      "USDB": { "address": "0x4300000000000000000000000000000000000003", "decimals": 18 },
+      "WETH": { "address": "0x4300000000000000000000000000000000000004", "decimals": 18 }
+    }
+  },
+  "base_8453": {
+    "explorer": "https://basescan.org",
+    "tokens": {
+      "cbBTC": { "address": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf", "decimals": 8 },
+      "USDC": { "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", "decimals": 6 },
+      "WETH": { "address": "0x4200000000000000000000000000000000000006", "decimals": 18 },
+      "KTA": { "address": "0xc0634090F2Fe6c6d75e61Be2b949464aBB498973", "decimals": 18 }
+    }
+  },
+  "avalanche_43114": {
+    "explorer": "https://snowtrace.io",
+    "tokens": {
+      "WAVAX": { "address": "0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7", "decimals": 18 },
+      "USDC": { "address": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E", "decimals": 6 },
+      "USDT": { "address": "0x1ABe428146795BC754170AF24CFd78663f257D29", "decimals": 6 },
+      "WETH": { "address": "0x49D5c2BdFfac6CE2BFdB6640F4F80f226bc10bAB", "decimals": 18, "note": "User listed same address for USDT and WETH — kept original WETH.e address" }
+    }
+  },
+  "sonic_146": {
+    "explorer": "https://sonicscan.org",
+    "tokens": {
+      "wS": { "address": "0x039e2fB66102314Ce7b64Ce5Ce3E5183bc94aD38", "decimals": 18 },
+      "USDC": { "address": "0x29219dd400f2Bf60E5a23d13Be72B486D4038894", "decimals": 6 }
+    }
+  },
+  "arbitrum_42161": {
+    "explorer": "https://arbiscan.io",
+    "tokens": {
+      "USDC": { "address": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", "decimals": 6 },
+      "WETH": { "address": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1", "decimals": 18 }
+    }
+  },
+  "polygon_137": {
+    "explorer": "https://polygonscan.com",
+    "tokens": {
+      "DAI": { "address": "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063", "decimals": 18 },
+      "WETH": { "address": "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619", "decimals": 18 },
+      "USDC.e": { "address": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174", "decimals": 6 },
+      "USDC": { "address": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359", "decimals": 6 },
+      "USDT": { "address": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F", "decimals": 6 },
+      "WPOL": { "address": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270", "decimals": 18 }
+    }
+  }
+}

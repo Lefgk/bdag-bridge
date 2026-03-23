@@ -12,7 +12,7 @@ export function Navbar() {
       <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
         <div className="flex items-center gap-8">
           <Link href="/" className="text-xl font-sans font-bold text-accent">
-            BDAG Bridge
+            Prosperity Bridge
           </Link>
           <div className="flex gap-1">
             <Link
@@ -34,6 +34,16 @@ export function Navbar() {
               }`}
             >
               Transactions
+            </Link>
+            <Link
+              href="/tokens"
+              className={`px-4 py-2 rounded-lg text-sm transition-colors ${
+                pathname === '/tokens'
+                  ? 'bg-card text-accent'
+                  : 'text-gray-400 hover:text-gray-200'
+              }`}
+            >
+              Tokens
             </Link>
             {pathname === '/blast' && (
               <Link
