@@ -1,5 +1,5 @@
 import { defineChain } from 'viem';
-import { mainnet, bsc, polygon, arbitrum, optimism, base, avalanche } from 'viem/chains';
+import { bsc, polygon, arbitrum, base, avalanche } from 'viem/chains';
 
 export const blockdag = defineChain({
   id: 1404,
@@ -38,11 +38,9 @@ export const sonicChain = defineChain({
 });
 
 export const SUPPORTED_CHAINS = [
-  { ...mainnet, label: 'Ethereum', color: '#627EEA' },
   { ...bsc, label: 'BNB Chain', color: '#F3BA2F' },
   { ...polygon, label: 'Polygon', color: '#8247E5' },
   { ...arbitrum, label: 'Arbitrum', color: '#28A0F0' },
-  { ...optimism, label: 'Optimism', color: '#FF0420' },
   { ...base, label: 'Base', color: '#0052FF' },
   { ...avalanche, label: 'Avalanche', color: '#E84142' },
   { ...blastChain, label: 'Blast', color: '#FCFC03' },

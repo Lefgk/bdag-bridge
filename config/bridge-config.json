@@ -2,38 +2,27 @@
   "version": "7.0.0",
   "hyperlaneExplorer": "https://explorer.hyperlane.xyz",
   "chains": {
-    "1": {
-      "name": "Ethereum",
-      "label": "ETH",
-      "icon": "https://icons.llamao.fi/icons/chains/rsz_ethereum.jpg",
-      "explorer": "https://etherscan.io",
-      "rpc": ["https://eth.llamarpc.com", "https://rpc.ankr.com/eth"],
-      "hyperlaneDomain": 1,
-      "confirmations": 12,
-      "mailbox": "0xc005dc82818d67AF737725bD4bf75435d065D239",
-      "contracts": { "router": "0x0000000000000000000000000000000000000000", "bridge": "0x0000000000000000000000000000000000000000" }
-    },
     "56": {
       "name": "BNB Chain",
       "label": "BSC",
       "icon": "https://icons.llamao.fi/icons/chains/rsz_bsc.jpg",
       "explorer": "https://bscscan.com",
-      "rpc": ["https://bsc.nownodes.io/e6a7f02b-9b5d-435f-a73e-1e023230b867", "https://bsc-rpc.publicnode.com", "https://bnb-mainnet.g.alchemy.com/v2/u8XmfIEpe-HMRFRgUGSRc7k2WeT2SeS6"],
+      "rpc": ["https://bsc-dataseed.binance.org", "https://bsc-rpc.publicnode.com"],
       "hyperlaneDomain": 56,
       "confirmations": 15,
       "mailbox": "0x2971b9Aec44bE4eb673DF1B88cDB57b96eefe8a4",
-      "contracts": { "router": "0x0000000000000000000000000000000000000000", "bridge": "0x0000000000000000000000000000000000000000" }
+      "contracts": { "router": "0x72da288d754607d15a389118052535a6d263dbdb", "bridge": "0xfa5DAdaff7437937b677197a6007665321C4F422" }
     },
     "137": {
       "name": "Polygon",
       "label": "Polygon",
       "icon": "https://icons.llamao.fi/icons/chains/rsz_polygon.jpg",
       "explorer": "https://polygonscan.com",
-      "rpc": ["https://polygon-rpc.com", "https://rpc.ankr.com/polygon"],
+      "rpc": ["https://polygon-bor-rpc.publicnode.com", "https://rpc.ankr.com/polygon"],
       "hyperlaneDomain": 137,
       "confirmations": 128,
       "mailbox": "0x5d934f4e2f797775e53561bB72aca21ba36B96BB",
-      "contracts": { "router": "0x0000000000000000000000000000000000000000", "bridge": "0x0000000000000000000000000000000000000000" }
+      "contracts": { "router": "0x73CA3531E0080c45E2B58FED5a6D126Ef7b7112C", "bridge": "0x67107f0F15b24B3566d7ea0823166b11D16AaDDf" }
     },
     "42161": {
       "name": "Arbitrum",
@@ -44,18 +33,7 @@
       "hyperlaneDomain": 42161,
       "confirmations": 1,
       "mailbox": "0x979Ca5202784112f4738403dBec5D0F3B9daabB9",
-      "contracts": { "router": "0x0000000000000000000000000000000000000000", "bridge": "0x0000000000000000000000000000000000000000" }
-    },
-    "10": {
-      "name": "Optimism",
-      "label": "OP",
-      "icon": "https://icons.llamao.fi/icons/chains/rsz_optimism.jpg",
-      "explorer": "https://optimistic.etherscan.io",
-      "rpc": ["https://mainnet.optimism.io", "https://rpc.ankr.com/optimism"],
-      "hyperlaneDomain": 10,
-      "confirmations": 1,
-      "mailbox": "0xd4C1905BB1D26BC93DAc913e13CaCC278CdCC80D",
-      "contracts": { "router": "0x0000000000000000000000000000000000000000", "bridge": "0x0000000000000000000000000000000000000000" }
+      "contracts": { "router": "0x73CA3531E0080c45E2B58FED5a6D126Ef7b7112C", "bridge": "0x67107f0F15b24B3566d7ea0823166b11D16AaDDf" }
     },
     "8453": {
       "name": "Base",
@@ -66,7 +44,7 @@
       "hyperlaneDomain": 8453,
       "confirmations": 1,
       "mailbox": "0xeA87ae93Fa0019a82A727bfd3eBd1cFCa8f64f1D",
-      "contracts": { "router": "0x0000000000000000000000000000000000000000", "bridge": "0x0000000000000000000000000000000000000000" }
+      "contracts": { "router": "0xe1dC5EA50eAF941706328490A2c253C98B6f2b80", "bridge": "0xC475D09fFb99aB93912dEC954A088dc75c3e62DD" }
     },
     "43114": {
       "name": "Avalanche",
@@ -77,7 +55,7 @@
       "hyperlaneDomain": 43114,
       "confirmations": 1,
       "mailbox": "0xFf06aFcaABaDDd1fb08371f9ccA15D73D51FeBD6",
-      "contracts": { "router": "0x0000000000000000000000000000000000000000", "bridge": "0x0000000000000000000000000000000000000000" }
+      "contracts": { "router": "0x36a42bB9c6fffd08004DB28D5E9Aa62202703DCe", "bridge": "0x6324406914eE52588a263cC52799B075Be5ED791" }
     },
     "81457": {
       "name": "Blast",
@@ -88,7 +66,7 @@
       "hyperlaneDomain": 81457,
       "confirmations": 10,
       "mailbox": "0x3a867fCfFeC2B790970eeBDC9023E75B0a172aa7",
-      "contracts": { "router": "0x0000000000000000000000000000000000000000", "bridge": "0x0000000000000000000000000000000000000000" }
+      "contracts": { "router": "0x1D5c8d068a8C2dBdC4bb371effb62870482aeb88", "bridge": "0x760927a63e76BbE74Dd1721d2ba39340d1278Cca" }
     },
     "146": {
       "name": "Sonic",
@@ -99,7 +77,7 @@
       "hyperlaneDomain": 146,
       "confirmations": 1,
       "mailbox": "0x0000000000000000000000000000000000000000",
-      "contracts": { "router": "0x0000000000000000000000000000000000000000", "bridge": "0x0000000000000000000000000000000000000000" }
+      "contracts": { "router": "0x73CA3531E0080c45E2B58FED5a6D126Ef7b7112C", "bridge": "0x67107f0F15b24B3566d7ea0823166b11D16AaDDf" }
     },
     "1404": {
       "name": "BlockDAG",
@@ -111,75 +89,39 @@
       "confirmations": 2,
       "gasPrice": 50000000,
       "mailbox": "0x0000000000000000000000000000000000000000",
-      "contracts": { "router": "0x0000000000000000000000000000000000000000", "bridge": "0x0000000000000000000000000000000000000000" }
+      "contracts": { "router": "0x2cfbf23402af68f242452ab0c8a7ce00b9b791e9", "bridge": "0x05a924cabc60c1d2d60e7ed8d523646cf6dd0f81" }
     }
   },
   "tokens": [
-    { "symbol": "USDC", "name": "USDC", "icon": "https://assets.coingecko.com/coins/images/6319/small/usdc.png", "addresses": { "1": { "address": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", "decimals": 6 }, "1404": { "address": "0x3bEe7e036A5B70E8C4d822E26C1526995E509d49", "decimals": 18 } } },
-    { "symbol": "USDC", "name": "USDC (BSC)", "icon": "https://assets.coingecko.com/coins/images/6319/small/usdc.png", "addresses": { "56": { "address": "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d", "decimals": 18 }, "1404": { "address": "0xe454ecf5ed2aa5365ec11f9e246934b679d3261c", "decimals": 18 } } },
-    { "symbol": "USDC", "name": "USDC (Polygon)", "icon": "https://assets.coingecko.com/coins/images/6319/small/usdc.png", "addresses": { "137": { "address": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359", "decimals": 6 }, "1404": { "address": "0xbd4767b2546e7d648a71ebe5fcbe888d734febe3", "decimals": 18 } } },
-    { "symbol": "USDC.e", "name": "Bridged USDC (Polygon)", "icon": "https://assets.coingecko.com/coins/images/6319/small/usdc.png", "addresses": { "137": { "address": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174", "decimals": 6 }, "1404": { "address": "0xf5ffe3eaff342ae22515ee952290acdfcd27ed45", "decimals": 18 } } },
-    { "symbol": "USDC", "name": "USDC (Arbitrum)", "icon": "https://assets.coingecko.com/coins/images/6319/small/usdc.png", "addresses": { "42161": { "address": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", "decimals": 6 }, "1404": { "address": "0x8ed5d43a5c053a8d2be7c36de2b2ea46dfed9cea", "decimals": 18 } } },
-    { "symbol": "USDC", "name": "USDC (Base)", "icon": "https://assets.coingecko.com/coins/images/6319/small/usdc.png", "addresses": { "8453": { "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", "decimals": 6 }, "1404": { "address": "0xab33414440e4799d202a0869d7b911901cb9b8e7", "decimals": 18 } } },
-    { "symbol": "USDC", "name": "USDC (Avalanche)", "icon": "https://assets.coingecko.com/coins/images/6319/small/usdc.png", "addresses": { "43114": { "address": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E", "decimals": 6 }, "1404": { "address": "0x657a20c2a685378b80294d17b257ac9e2e169f06", "decimals": 18 } } },
-    { "symbol": "USDC", "name": "USDC (Sonic)", "icon": "https://assets.coingecko.com/coins/images/6319/small/usdc.png", "addresses": { "146": { "address": "0x29219dd400f2Bf60E5a23d13Be72B486D4038894", "decimals": 6 }, "1404": { "address": "0x18a7a445a513a09c1b5c4cc5fc44174fbbb13615", "decimals": 18 } } },
+    { "symbol": "USDC", "name": "USDC (BSC)", "icon": "https://assets.coingecko.com/coins/images/6319/small/usdc.png", "addresses": { "56": { "address": "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d", "decimals": 18 }, "1404": { "address": "0x28eb6f3ac1ea2daf488a955179ab037c5dd9e661", "decimals": 18 } } },
+    { "symbol": "USDC", "name": "USDC (Polygon)", "icon": "https://assets.coingecko.com/coins/images/6319/small/usdc.png", "addresses": { "137": { "address": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359", "decimals": 6 }, "1404": { "address": "0x982728bd8456816659f2dc919b722d7a2fb2aad7", "decimals": 18 } } },
+    { "symbol": "USDC.e", "name": "Bridged USDC (Polygon)", "icon": "https://assets.coingecko.com/coins/images/6319/small/usdc.png", "addresses": { "137": { "address": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174", "decimals": 6 }, "1404": { "address": "0x24c84a41abfd6cf65e0d55c2200f69e0dc8b811d", "decimals": 18 } } },
+    { "symbol": "USDC", "name": "USDC (Arbitrum)", "icon": "https://assets.coingecko.com/coins/images/6319/small/usdc.png", "addresses": { "42161": { "address": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831", "decimals": 6 }, "1404": { "address": "0x167be5cf3be6c1108852865b6fe50ffd670f9d62", "decimals": 18 } } },
+    { "symbol": "USDC", "name": "USDC (Base)", "icon": "https://assets.coingecko.com/coins/images/6319/small/usdc.png", "addresses": { "8453": { "address": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", "decimals": 6 }, "1404": { "address": "0x9d973220664c210b8ff0fc03833c158c202b9292", "decimals": 18 } } },
+    { "symbol": "USDC", "name": "USDC (Avalanche)", "icon": "https://assets.coingecko.com/coins/images/6319/small/usdc.png", "addresses": { "43114": { "address": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E", "decimals": 6 }, "1404": { "address": "0x0ebba9a5bafeeb2bdb891748cfdca01e69cd02b2", "decimals": 18 } } },
+    { "symbol": "USDC", "name": "USDC (Sonic)", "icon": "https://assets.coingecko.com/coins/images/6319/small/usdc.png", "addresses": { "146": { "address": "0x29219dd400f2Bf60E5a23d13Be72B486D4038894", "decimals": 6 }, "1404": { "address": "0x799d852ad215c73845b963cd1a1fc8566d1c343f", "decimals": 18 } } },
 
-    { "symbol": "USDT", "name": "USDT", "icon": "https://assets.coingecko.com/coins/images/325/small/Tether.png", "addresses": { "1": { "address": "0xdAC17F958D2ee523a2206206994597C13D831ec7", "decimals": 6 }, "1404": { "address": "0x30cF410d7aBb06D9E6BbE73D54A327847dF81225", "decimals": 18 } } },
-    { "symbol": "USDT", "name": "USDT (BSC)", "icon": "https://assets.coingecko.com/coins/images/325/small/Tether.png", "addresses": { "56": { "address": "0x55d398326f99059fF775485246999027B3197955", "decimals": 18 }, "1404": { "address": "0x91457e7e54229939090De72E28CC0e66f11c60e9", "decimals": 18 } } },
-    { "symbol": "USDT", "name": "USDT (Polygon)", "icon": "https://assets.coingecko.com/coins/images/325/small/Tether.png", "addresses": { "137": { "address": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F", "decimals": 6 }, "1404": { "address": "0x71c03da37db89f9aca81cf95f02a2a494a79b5d1", "decimals": 18 } } },
-    { "symbol": "USDT", "name": "USDT (Avalanche)", "icon": "https://assets.coingecko.com/coins/images/325/small/Tether.png", "addresses": { "43114": { "address": "0x1ABe428146795BC754170AF24CFd78663f257D29", "decimals": 6 }, "1404": { "address": "0x64289582f28a89621ccfa78bc975c6e006e846c8", "decimals": 18 } } },
+    { "symbol": "USDT", "name": "USDT (BSC)", "icon": "https://assets.coingecko.com/coins/images/325/small/Tether.png", "addresses": { "56": { "address": "0x55d398326f99059fF775485246999027B3197955", "decimals": 18 }, "1404": { "address": "0x62ad37ff9df8e4f4c9f24dc0f0a71fda0b4d75b3", "decimals": 18 } } },
+    { "symbol": "USDT", "name": "USDT (Polygon)", "icon": "https://assets.coingecko.com/coins/images/325/small/Tether.png", "addresses": { "137": { "address": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F", "decimals": 6 }, "1404": { "address": "0x049b2bdcb97b828cba242ec17a4ff4dd89fd1abe", "decimals": 18 } } },
+    { "symbol": "USDT", "name": "USDT (Avalanche)", "icon": "https://assets.coingecko.com/coins/images/325/small/Tether.png", "addresses": { "43114": { "address": "0x9702230A8Ea53601f5cD2dc00fDBc13d4dF4A8c7", "decimals": 6 }, "1404": { "address": "0x3407c5970d4f22c3625098164408d095f917773e", "decimals": 18 } } },
 
-    { "symbol": "WETH", "name": "WETH", "icon": "https://assets.coingecko.com/coins/images/279/small/ethereum.png", "addresses": { "1": { "address": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", "decimals": 18 }, "1404": { "address": "0x0d54B02E7c54F757ae4610fE43FFd7945e50D89a", "decimals": 18 } } },
-    { "symbol": "WETH", "name": "WETH (BSC)", "icon": "https://assets.coingecko.com/coins/images/279/small/ethereum.png", "addresses": { "56": { "address": "0x2170Ed0880ac9A755fd29B2688956BD959F933F8", "decimals": 18 }, "1404": { "address": "0x51dbd88aec27f81d24f121509def63b379389204", "decimals": 18 } } },
-    { "symbol": "WETH", "name": "WETH (Polygon)", "icon": "https://assets.coingecko.com/coins/images/279/small/ethereum.png", "addresses": { "137": { "address": "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619", "decimals": 18 }, "1404": { "address": "0x2199526ab2c723bd1a398023fd39988fe6764667", "decimals": 18 } } },
-    { "symbol": "WETH", "name": "WETH (Arbitrum)", "icon": "https://assets.coingecko.com/coins/images/279/small/ethereum.png", "addresses": { "42161": { "address": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1", "decimals": 18 }, "1404": { "address": "0x3545a7582ca0802b0c160b83ec4efdebc61a03b1", "decimals": 18 } } },
-    { "symbol": "WETH", "name": "WETH (Base)", "icon": "https://assets.coingecko.com/coins/images/279/small/ethereum.png", "addresses": { "8453": { "address": "0x4200000000000000000000000000000000000006", "decimals": 18 }, "1404": { "address": "0x7d02d684c3d61ab5bd7974bd53f145fdc54c9f1e", "decimals": 18 } } },
-    { "symbol": "WETH", "name": "WETH (Avalanche)", "icon": "https://assets.coingecko.com/coins/images/279/small/ethereum.png", "addresses": { "43114": { "address": "0x49D5c2BdFfac6CE2BFdB6640F4F80f226bc10bAB", "decimals": 18 }, "1404": { "address": "0x6954f1b3d05e8ff56008996f496f937113151a42", "decimals": 18 } } },
-    { "symbol": "WETH", "name": "WETH (Blast)", "icon": "https://assets.coingecko.com/coins/images/279/small/ethereum.png", "addresses": { "81457": { "address": "0x4300000000000000000000000000000000000004", "decimals": 18 }, "1404": { "address": "0x3272fe1fb6598d88003b57b86fd6eeb21a3cd44d", "decimals": 18 } } },
+    { "symbol": "WETH", "name": "WETH (BSC)", "icon": "https://assets.coingecko.com/coins/images/279/small/ethereum.png", "addresses": { "56": { "address": "0x2170Ed0880ac9A755fd29B2688956BD959F933F8", "decimals": 18 }, "1404": { "address": "0xa214b2bb3a880ce0d3b7c1df28b8dbf7b5ccad46", "decimals": 18 } } },
+    { "symbol": "WETH", "name": "WETH (Polygon)", "icon": "https://assets.coingecko.com/coins/images/279/small/ethereum.png", "addresses": { "137": { "address": "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619", "decimals": 18 }, "1404": { "address": "0xe5bd6626bb8cf8485dddeeb65f7cc5d1b426cb23", "decimals": 18 } } },
+    { "symbol": "WETH", "name": "WETH (Arbitrum)", "icon": "https://assets.coingecko.com/coins/images/279/small/ethereum.png", "addresses": { "42161": { "address": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1", "decimals": 18 }, "1404": { "address": "0x0affc05bcac00d7f127a49d5012174e389b95bfb", "decimals": 18 } } },
+    { "symbol": "WETH", "name": "WETH (Base)", "icon": "https://assets.coingecko.com/coins/images/279/small/ethereum.png", "addresses": { "8453": { "address": "0x4200000000000000000000000000000000000006", "decimals": 18 }, "1404": { "address": "0x70353d93d00e9e0312ef04965fa3b14013fb786a", "decimals": 18 } } },
+    { "symbol": "WETH", "name": "WETH (Avalanche)", "icon": "https://assets.coingecko.com/coins/images/279/small/ethereum.png", "addresses": { "43114": { "address": "0x49D5c2BdFfac6CE2BFdB6640F4F80f226bc10bAB", "decimals": 18 }, "1404": { "address": "0xe90e3748331cf0d34efc444dfeb73466fba9e013", "decimals": 18 } } },
+    { "symbol": "WETH", "name": "WETH (Blast)", "icon": "https://assets.coingecko.com/coins/images/279/small/ethereum.png", "addresses": { "81457": { "address": "0x4300000000000000000000000000000000000004", "decimals": 18 }, "1404": { "address": "0xa214b2bb3a880ce0d3b7c1df28b8dbf7b5ccad46", "decimals": 18 } } },
 
-    { "symbol": "WBNB", "name": "WBNB", "icon": "https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png", "addresses": { "56": { "address": "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c", "decimals": 18 }, "1404": { "address": "0x1979d14ffb8113b7702df61324dd952afb4ae5bd", "decimals": 18 } } },
-    { "symbol": "WPOL", "name": "WPOL / MATIC", "icon": "https://assets.coingecko.com/coins/images/4713/small/matic-token-icon.png", "addresses": { "137": { "address": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270", "decimals": 18 }, "1404": { "address": "0x3a6da54e796eebc1665dd07cc2526491733c9410", "decimals": 18 } } },
-    { "symbol": "WAVAX", "name": "WAVAX", "icon": "https://assets.coingecko.com/coins/images/12559/small/Avalanche_Circle_RedWhite_Trans.png", "addresses": { "43114": { "address": "0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7", "decimals": 18 }, "1404": { "address": "0xe3e21a6dc736b9ec141a14eb4cd583682c3d07cd", "decimals": 18 } } },
-    { "symbol": "wS", "name": "Wrapped Sonic", "icon": "https://assets.coingecko.com/coins/images/38051/small/sonic.png", "addresses": { "146": { "address": "0x039e2fB66102314Ce7b64Ce5Ce3E5183bc94aD38", "decimals": 18 }, "1404": { "address": "0x496e46ae1b66a2d3d233189842a2eace8412d70d", "decimals": 18 } } },
+    { "symbol": "WBNB", "name": "WBNB", "icon": "https://assets.coingecko.com/coins/images/825/small/bnb-icon2_2x.png", "addresses": { "56": { "address": "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c", "decimals": 18 }, "1404": { "address": "0x8707cacb12a6826e00c81a60fbb37cc7f24235bb", "decimals": 18 } } },
+    { "symbol": "WPOL", "name": "WPOL / MATIC", "icon": "https://assets.coingecko.com/coins/images/4713/small/matic-token-icon.png", "addresses": { "137": { "address": "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270", "decimals": 18 }, "1404": { "address": "0xe25f195dff1c5da2d7bb89be762ae4de3966b65b", "decimals": 18 } } },
+    { "symbol": "WAVAX", "name": "WAVAX", "icon": "https://assets.coingecko.com/coins/images/12559/small/Avalanche_Circle_RedWhite_Trans.png", "addresses": { "43114": { "address": "0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7", "decimals": 18 }, "1404": { "address": "0xd106b27410b01f9500804282843665416ceeb600", "decimals": 18 } } },
+    { "symbol": "wS", "name": "Wrapped Sonic", "icon": "https://assets.coingecko.com/coins/images/38051/small/sonic.png", "addresses": { "146": { "address": "0x039e2fB66102314Ce7b64Ce5Ce3E5183bc94aD38", "decimals": 18 }, "1404": { "address": "0x491f6153c79e58a7b166036194640744ff6fa6ec", "decimals": 18 } } },
 
-    { "symbol": "WBTC", "name": "WBTC", "icon": "https://assets.coingecko.com/coins/images/7598/small/wrapped_bitcoin_wbtc.png", "addresses": { "1": { "address": "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", "decimals": 8 }, "1404": { "address": "0xFC96f27FEcEE353FBb4385D07d79342D518768Fa", "decimals": 18 } } },
-    { "symbol": "BTCB", "name": "BTCB (BSC)", "icon": "https://assets.coingecko.com/coins/images/14108/small/Binance-bitcoin.png", "addresses": { "56": { "address": "0x7130d2A12B9BCbFAe4f2634d864A1Ee1Ce3Ead9c", "decimals": 18 }, "1404": { "address": "0x5858ad64d69f71a5b876d68044bced612710f56f", "decimals": 18 } } },
-    { "symbol": "cbBTC", "name": "Coinbase BTC", "icon": "https://assets.coingecko.com/coins/images/40143/small/cbbtc.webp", "addresses": { "1": { "address": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf", "decimals": 8 }, "1404": { "address": "0xce2c2c472CF5B7C80271c63930335403176e131C", "decimals": 18 } } },
-    { "symbol": "cbBTC", "name": "Coinbase BTC (Base)", "icon": "https://assets.coingecko.com/coins/images/40143/small/cbbtc.webp", "addresses": { "8453": { "address": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf", "decimals": 8 }, "1404": { "address": "0x0a89190c15c16f5fa529c13b8f9173fa24236ab5", "decimals": 18 } } },
+    { "symbol": "cbBTC", "name": "Coinbase BTC (Base)", "icon": "https://assets.coingecko.com/coins/images/40143/small/cbbtc.webp", "addresses": { "8453": { "address": "0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf", "decimals": 8 }, "1404": { "address": "0x28081ec3fa5112c394add365c8eca49b36897748", "decimals": 18 } } },
 
-    { "symbol": "USDe", "name": "Ethena USDe", "icon": "https://assets.coingecko.com/coins/images/33613/small/usde.png", "addresses": { "1": { "address": "0x4c9EDD5852cd905f086C759E8383e09bff1E68B3", "decimals": 18 }, "1404": { "address": "0x9407c028d36d3486bB2246c53Df2170C95e2fE48", "decimals": 18 } } },
-    { "symbol": "USDB", "name": "USDB (Blast)", "icon": "https://assets.coingecko.com/coins/images/35105/small/usdb.png", "addresses": { "81457": { "address": "0x4300000000000000000000000000000000000003", "decimals": 18 }, "1404": { "address": "0x3e4569732be57af6d0a898f93c0cc0a50a644672", "decimals": 18 } } },
-    { "symbol": "XAUT", "name": "Tether Gold", "icon": "https://assets.coingecko.com/coins/images/10481/small/Tether_Gold.png", "addresses": { "1": { "address": "0x68749665FF8D2d112Fa859AA293F07A622782F38", "decimals": 6 }, "1404": { "address": "0xBF920d6174C6d0AAe42013043D36E305AB67cc83", "decimals": 18 } } },
-    { "symbol": "AAVE", "name": "Aave", "icon": "https://assets.coingecko.com/coins/images/12645/small/aave-token-round.png", "addresses": { "1": { "address": "0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9", "decimals": 18 }, "1404": { "address": "0x6b99ef12adeda4e21a93244ca95ebbeabe17c857", "decimals": 18 } } },
-    { "symbol": "LINK", "name": "Chainlink", "icon": "https://assets.coingecko.com/coins/images/877/small/chainlink-new-logo.png", "addresses": { "1": { "address": "0x514910771AF9Ca656af840dff83E8264EcF986CA", "decimals": 18 }, "1404": { "address": "0xd9d26ab880731e2a7e47b970b50e0771e0d6a897", "decimals": 18 } } },
-    { "symbol": "LINK", "name": "Chainlink (BSC)", "icon": "https://assets.coingecko.com/coins/images/877/small/chainlink-new-logo.png", "addresses": { "56": { "address": "0xF8A0BF9cF54Bb92F17374d9e9A321E6a111a51bD", "decimals": 18 }, "1404": { "address": "0xae824598438658e3c6351f1f48110884f5c8e159", "decimals": 18 } } },
-    { "symbol": "DAI", "name": "DAI", "icon": "https://assets.coingecko.com/coins/images/9956/small/Badge_Dai.png", "addresses": { "1": { "address": "0x6B175474E89094C44Da98b954EedeAC495271d0F", "decimals": 18 }, "1404": { "address": "0x19fee28e44c4bd8321326598eaf5dd00982638ba", "decimals": 18 } } },
-    { "symbol": "DAI", "name": "DAI (Polygon)", "icon": "https://assets.coingecko.com/coins/images/9956/small/Badge_Dai.png", "addresses": { "137": { "address": "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063", "decimals": 18 }, "1404": { "address": "0x3ed68bc18dcb6e58467f4b857db4ade6c2c61d28", "decimals": 18 } } },
-    { "symbol": "PAXG", "name": "Pax Gold", "icon": "https://assets.coingecko.com/coins/images/9519/small/paxg.PNG", "addresses": { "1": { "address": "0x45804880De22913dAFE09f4980848ECE6EcbAf78", "decimals": 18 }, "1404": { "address": "0xfdac5f317acb2bb2fc287aab003961c6b391aec2", "decimals": 18 } } },
-    { "symbol": "EURC", "name": "Euro Coin", "icon": "https://assets.coingecko.com/coins/images/26045/small/euro-coin.png", "addresses": { "1": { "address": "0x1aBaEA1f7C830bD89Acc67eC4af516284b1bC33c", "decimals": 6 }, "1404": { "address": "0x93857e34b73c0bdd2ff60e9febf8174af3a6e30e", "decimals": 18 } } },
-    { "symbol": "RLUSD", "name": "Ripple USD", "icon": "https://assets.coingecko.com/coins/images/42205/small/rlusd.png", "addresses": { "1": { "address": "0x8292Bb45bf1Ee4d140127049757C2E0fF06317eD", "decimals": 18 }, "1404": { "address": "0x9cc1f8f3f61ddcf0490c1483112119c8ab9ecb9d", "decimals": 18 } } },
-    { "symbol": "UNI", "name": "Uniswap", "icon": "https://assets.coingecko.com/coins/images/12504/small/uniswap-uni.png", "addresses": { "1": { "address": "0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984", "decimals": 18 }, "1404": { "address": "0x1ec4b67d16cf5620076f9c52c150d58d16b228a2", "decimals": 18 } } },
-    { "symbol": "mUSD", "name": "MetaMask USD", "icon": "https://assets.coingecko.com/coins/images/38880/small/metamask-usd.png", "addresses": { "1": { "address": "0xacA92E438df0B2401fF60dA7E4337B687a2435DA", "decimals": 18 }, "1404": { "address": "0x2c7c62bf29c197cde01d77a8d8e9aba06791dc0f", "decimals": 18 } } },
-    { "symbol": "WLD", "name": "Worldcoin", "icon": "https://assets.coingecko.com/coins/images/31069/small/worldcoin.jpeg", "addresses": { "1": { "address": "0x163f8C2467924be0ae7B5347228CABF260318753", "decimals": 18 }, "1404": { "address": "0x191acce735c6e22046315c0efdc34602364afd11", "decimals": 18 } } },
-    { "symbol": "ZRO", "name": "LayerZero", "icon": "https://assets.coingecko.com/coins/images/28206/small/ftxG9_TJ_400x400.jpeg", "addresses": { "1": { "address": "0x6985884C4392D348587B19cb9eAAf157F13271cd", "decimals": 18 }, "1404": { "address": "0xf63639f788c4f8eb553fa1898f5e4c63b15523a4", "decimals": 18 } } },
-    { "symbol": "USD1", "name": "USD1", "icon": "https://assets.coingecko.com/coins/images/49412/small/usd1.png", "addresses": { "1": { "address": "0x8d0D000Ee44948FC98c9B98A4FA4921476f08B0d", "decimals": 18 }, "1404": { "address": "0xf340f12c6d6abd1d39ff65a756e1cbc83f5c7ab6", "decimals": 18 } } },
-    { "symbol": "USD1", "name": "USD1 (BSC)", "icon": "https://assets.coingecko.com/coins/images/49412/small/usd1.png", "addresses": { "56": { "address": "0x8d0D000Ee44948FC98c9B98A4FA4921476f08B0d", "decimals": 18 }, "1404": { "address": "0x9b87c3cebf24f3035f6aef28f2fea549537a3366", "decimals": 18 } } },
-    { "symbol": "SOL", "name": "Solana (Wormhole)", "icon": "https://assets.coingecko.com/coins/images/4128/small/solana.png", "addresses": { "1": { "address": "0xD31a59c85aE9D8edEFeC411D448f90841571b89c", "decimals": 9 }, "1404": { "address": "0x98a39e019faec6a6a195c8896513eccc9a2f98b5", "decimals": 18 } } },
-    { "symbol": "SOL", "name": "Solana (BSC)", "icon": "https://assets.coingecko.com/coins/images/4128/small/solana.png", "addresses": { "56": { "address": "0x570A5D26f7765Ecb712C0924E4De545B89fD43dF", "decimals": 18 }, "1404": { "address": "0x78d974a5e3987e6061e297ebf7b05d581e54e08b", "decimals": 18 } } },
-    { "symbol": "WLFI", "name": "World Liberty Financial", "icon": "https://assets.coingecko.com/coins/images/40474/small/wlfi.png", "addresses": { "1": { "address": "0xdA5e1988097297dCdc1f90D4dFE7909e847CBeF6", "decimals": 18 }, "1404": { "address": "0xad082cef1f740fb32fadc636aebec3de63245988", "decimals": 18 } } },
-    { "symbol": "WLFI", "name": "World Liberty Financial (BSC)", "icon": "https://assets.coingecko.com/coins/images/40474/small/wlfi.png", "addresses": { "56": { "address": "0x47474747477b199288bf72a1d702f7fe0fb1deea", "decimals": 18 }, "1404": { "address": "0xd1763a521a0dbe5d6898e105401ede91852dd637", "decimals": 18 } } },
+    { "symbol": "USDB", "name": "USDB (Blast)", "icon": "https://assets.coingecko.com/coins/images/35105/small/usdb.png", "addresses": { "81457": { "address": "0x4300000000000000000000000000000000000003", "decimals": 18 }, "1404": { "address": "0x62ad37ff9df8e4f4c9f24dc0f0a71fda0b4d75b3", "decimals": 18 } } },
 
-    { "symbol": "ADA", "name": "Cardano (BSC)", "icon": "https://assets.coingecko.com/coins/images/975/small/cardano.png", "addresses": { "56": { "address": "0x3EE2200Efb3400fAbB9AacF31297cBdD1d435D47", "decimals": 18 }, "1404": { "address": "0x3610b7e28770b498d98238ca62b445370106977d", "decimals": 18 } } },
-    { "symbol": "ASTR", "name": "Astar (BSC)", "icon": "https://assets.coingecko.com/coins/images/22617/small/astr.png", "addresses": { "56": { "address": "0x000ae314e2a2172a039b26378814c252734f556a", "decimals": 18 }, "1404": { "address": "0x29e69889f86c77a89ece5cb0edc5ac1efda0d024", "decimals": 18 } } },
-    { "symbol": "BCH", "name": "Bitcoin Cash (BSC)", "icon": "https://assets.coingecko.com/coins/images/780/small/bitcoin-cash-circle.png", "addresses": { "56": { "address": "0x8fF795a6F4D97E7887C79beA79aba5cc76444aDf", "decimals": 18 }, "1404": { "address": "0xb17cc999e45c65aa14fd0c4d5321384945014c7e", "decimals": 18 } } },
-    { "symbol": "DOGE", "name": "Dogecoin (BSC)", "icon": "https://assets.coingecko.com/coins/images/5/small/dogecoin.png", "addresses": { "56": { "address": "0xbA2aE424d960c26247Dd6c32edC70B295c744C43", "decimals": 8 }, "1404": { "address": "0x6fe86b96a41f369ad002e329c72f5f04c41cd01a", "decimals": 18 } } },
-    { "symbol": "DOT", "name": "Polkadot (BSC)", "icon": "https://assets.coingecko.com/coins/images/12171/small/polkadot.png", "addresses": { "56": { "address": "0x7083609fCE4d1d8Dc0C979AAb8c869Ea2C873402", "decimals": 18 }, "1404": { "address": "0xa689129b6882428e9794cc412595826df6008749", "decimals": 18 } } },
-    { "symbol": "XRP", "name": "XRP (BSC)", "icon": "https://assets.coingecko.com/coins/images/44/small/xrp-symbol-white-128.png", "addresses": { "56": { "address": "0x1D2F0da169ceB9fC7B3144628dB156f3F6c60dBE", "decimals": 18 }, "1404": { "address": "0x42b96a629d75c62c72eceeec63f611be52c3e3e2", "decimals": 18 } } },
-    { "symbol": "TRX", "name": "Tron (BSC)", "icon": "https://assets.coingecko.com/coins/images/1094/small/tron-logo.png", "addresses": { "56": { "address": "0xCE7de646e7208a4Ef112cb6ed5038FA6cC6b12e3", "decimals": 6 }, "1404": { "address": "0x2D586C7D69C632395Ce09bB273046462e8dAD762", "decimals": 18 } } },
-    { "symbol": "TUSD", "name": "TrueUSD (BSC)", "icon": "https://assets.coingecko.com/coins/images/3449/small/tusd.png", "addresses": { "56": { "address": "0x40af3827F39D0EAcBF4A168f8D4ee67c121D11c9", "decimals": 18 }, "1404": { "address": "0x7a5bfd24cda7e04a702febc397c9296b8f6690dc", "decimals": 18 } } },
-    { "symbol": "KTA", "name": "KTA (Base)", "icon": "https://bdagscan.com/favicon.png", "addresses": { "8453": { "address": "0xc0634090F2Fe6c6d75e61Be2b949464aBB498973", "decimals": 18 }, "1404": { "address": "0x050c92d1eb3b646ce954ce85bc28c15e263e5e30", "decimals": 18 } } },
-
-    { "symbol": "wBonie", "name": "Wrapped Bonie", "icon": "https://bdagscan.com/favicon.png", "addresses": { "1404": { "address": "0x0000000000000000000000000000000000000000", "decimals": 18 } } }
+    { "symbol": "DAI", "name": "DAI (Polygon)", "icon": "https://assets.coingecko.com/coins/images/9956/small/Badge_Dai.png", "addresses": { "137": { "address": "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063", "decimals": 18 }, "1404": { "address": "0x24688562d9296ae6c6130ff9b26479f9c0e3bcad", "decimals": 18 } } }
   ],
   "admin": "0xD0D3D4E5c6604Bf032412A79f8A178782b54B88b"
 }

@@ -2,7 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { WagmiProvider, http } from 'wagmi';
-import { mainnet, bsc, polygon, arbitrum, optimism, base, avalanche } from 'wagmi/chains';
+import { bsc, polygon, arbitrum, base, avalanche } from 'wagmi/chains';
 import { RainbowKitProvider, getDefaultConfig, darkTheme } from '@rainbow-me/rainbowkit';
 import '@rainbow-me/rainbowkit/styles.css';
 import { blockdag, blastChain, sonicChain } from '@/config/chains';
@@ -10,13 +10,11 @@ import { blockdag, blastChain, sonicChain } from '@/config/chains';
 const config = getDefaultConfig({
   appName: 'Prosperity Bridge',
   projectId: process.env.NEXT_PUBLIC_WC_PROJECT_ID || 'demo',
-  chains: [mainnet, bsc, polygon, arbitrum, optimism, base, avalanche, blastChain, sonicChain, blockdag],
+  chains: [bsc, polygon, arbitrum, base, avalanche, blastChain, sonicChain, blockdag],
   transports: {
-    [mainnet.id]: http(),
     [bsc.id]: http(),
     [polygon.id]: http(),
     [arbitrum.id]: http(),
-    [optimism.id]: http(),
     [base.id]: http(),
     [avalanche.id]: http(),
     [blastChain.id]: http('https://rpc.blast.io'),
