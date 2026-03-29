@@ -66,7 +66,7 @@
       "hyperlaneDomain": 81457,
       "confirmations": 10,
       "mailbox": "0x3a867fCfFeC2B790970eeBDC9023E75B0a172aa7",
-      "contracts": { "router": "0x1D5c8d068a8C2dBdC4bb371effb62870482aeb88", "bridge": "0x760927a63e76BbE74Dd1721d2ba39340d1278Cca" }
+      "contracts": { "router": "0x1D5c8d068a8C2dBdC4bb371effb62870482aeb88", "bridge": "0xeaE5E952473192B3AfA83C7418edc33abda6c9B9" }
     },
     "146": {
       "name": "Sonic",
