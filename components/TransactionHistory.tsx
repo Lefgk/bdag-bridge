@@ -210,6 +210,7 @@ export function TransactionHistory() {
                   <th className="text-left pb-2 pr-3 font-medium">Date</th>
                   <th className="text-left pb-2 pr-3 font-medium">Direction</th>
                   <th className="text-left pb-2 pr-3 font-medium">Deposit Tx</th>
+                  <th className="text-left pb-2 pr-3 font-medium">Release Tx</th>
                   <th className="text-right pb-2 pr-3 font-medium">Amount</th>
                   <th className="text-right pb-2 font-medium">Status</th>
                 </tr>
@@ -220,14 +221,32 @@ export function TransactionHistory() {
                     <td className="py-2.5 pr-3 text-gray-400 whitespace-nowrap">{formatDate(tx.timestamp)}</td>
                     <td className="py-2.5 pr-3">{directionBadge(tx.sourceChainId, tx.destChainId)}</td>
                     <td className="py-2.5 pr-3">
-                      <a
-                        href={explorerTxUrl(tx.txHash, tx.sourceChainId)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-accent hover:text-accent-dim text-xs"
-                      >
-                        {truncateHash(tx.txHash)}
-                      </a>
+                      {tx.txHash ? (
+                        <a
+                          href={explorerTxUrl(tx.txHash, tx.sourceChainId)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-accent hover:text-accent-dim text-xs"
+                        >
+                          {truncateHash(tx.txHash)}
+                        </a>
+                      ) : (
+                        <span className="text-gray-500 text-xs">—</span>
+                      )}
+                    </td>
+                    <td className="py-2.5 pr-3">
+                      {tx.releaseTxHash ? (
+                        <a
+                          href={explorerTxUrl(tx.releaseTxHash, tx.destChainId)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-accent hover:text-accent-dim text-xs"
+                        >
+                          {truncateHash(tx.releaseTxHash)}
+                        </a>
+                      ) : (
+                        <span className="text-gray-500 text-xs">—</span>
+                      )}
                     </td>
                     <td className="py-2.5 pr-3 text-right text-white whitespace-nowrap">
                       {isNaN(parseFloat(tx.amount)) ? '—' : `${parseFloat(tx.amount).toFixed(4)} ${tx.tokenSymbol}`}

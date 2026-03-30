@@ -13,6 +13,7 @@ const RELAYER_API = (config as any).relayerApi || 'http://localhost:3032';
 
 export interface BridgeTx {
   txHash: string;
+  releaseTxHash: string;
   depositNumber: string;
   sourceChainId: number;
   destChainId: number;
@@ -87,12 +88,15 @@ export function useBridgeHistory() {
         const decimals = resolveTokenDecimals(tokenAddr, sourceChainId);
         const rawAmount = d.amount || '0';
         const amount = formatUnits(BigInt(rawAmount), decimals);
-        const delivered = !!(d.tx_hash && d.tx_hash !== 'pending' && d.tx_hash !== 'reverted');
+        const rawReleaseTx = d.tx_hash || '';
+        const isRealHash = rawReleaseTx.startsWith('0x') && rawReleaseTx.length === 66;
+        const delivered = !!(rawReleaseTx && rawReleaseTx !== 'pending' && rawReleaseTx !== 'reverted');
         const depositKey = d.key || '';
         const depositNumber = depositKey.includes('_') ? depositKey.split('_')[1] : '';
 
         return {
-          txHash: d.deposit_tx || d.tx_hash || '',
+          txHash: d.deposit_tx || '',
+          releaseTxHash: isRealHash ? rawReleaseTx : '',
           depositNumber,
           sourceChainId,
           destChainId,
