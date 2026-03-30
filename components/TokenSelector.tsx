@@ -78,47 +78,55 @@ export function TokenSelector({ tokens, selected, onSelect, sourceChainId, disab
         <span className="text-gray-400 ml-auto shrink-0">&#9662;</span>
       </button>
 
-      {/* Dropdown */}
+      {/* Modal overlay */}
       {open && (
-        <div className="absolute z-50 w-full mt-2 bg-card border border-gray-700 rounded-xl shadow-2xl max-h-[300px] overflow-y-auto">
-          {tokens.map((token) => {
-            const addr = token.addresses[sourceChainId];
-            const isSelected = selected?.symbol === token.symbol && selected?.name === token.name;
-            return (
-              <button
-                key={`${token.symbol}-${token.name}`}
-                type="button"
-                onClick={() => {
-                  onSelect(token);
-                  setOpen(false);
-                }}
-                className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-white/5 transition-colors text-left ${
-                  isSelected ? 'bg-accent/10 border-l-2 border-accent' : ''
-                }`}
-              >
-                <img
-                  src={token.icon}
-                  alt={token.symbol}
-                  className="w-8 h-8 rounded-full shrink-0"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-white font-semibold text-sm">{token.symbol}</span>
-                    <span className="text-gray-500 text-xs">{token.name}</span>
-                  </div>
-                  {addr && (
-                    <div className="text-[10px] text-gray-600 font-mono mt-0.5 truncate">
-                      {addr}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-card border border-gray-700 rounded-2xl shadow-2xl w-full max-w-md max-h-[70vh] flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700/50">
+              <span className="text-sm font-semibold text-white">Select Token</span>
+              <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-white text-lg leading-none">&times;</button>
+            </div>
+            <div className="overflow-y-auto flex-1">
+              {tokens.map((token) => {
+                const addr = token.addresses[sourceChainId];
+                const isSelected = selected?.symbol === token.symbol && selected?.name === token.name;
+                return (
+                  <button
+                    key={`${token.symbol}-${token.name}`}
+                    type="button"
+                    onClick={() => {
+                      onSelect(token);
+                      setOpen(false);
+                    }}
+                    className={`w-full px-4 py-3 flex items-center gap-3 hover:bg-white/5 transition-colors text-left ${
+                      isSelected ? 'bg-accent/10 border-l-2 border-accent' : ''
+                    }`}
+                  >
+                    <img
+                      src={token.icon}
+                      alt={token.symbol}
+                      className="w-8 h-8 rounded-full shrink-0"
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-white font-semibold text-sm">{token.symbol}</span>
+                        <span className="text-gray-500 text-xs">{token.name}</span>
+                      </div>
+                      {addr && (
+                        <div className="text-[10px] text-gray-600 font-mono mt-0.5 truncate">
+                          {addr}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-                <div className="text-right shrink-0">
-                  <TokenBalance token={token} chainId={sourceChainId} />
-                </div>
-              </button>
-            );
-          })}
+                    <div className="text-right shrink-0">
+                      <TokenBalance token={token} chainId={sourceChainId} />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
       )}
     </div>
