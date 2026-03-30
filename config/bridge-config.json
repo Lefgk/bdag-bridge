@@ -1,6 +1,6 @@
 {
   "version": "7.0.0",
-  "hyperlaneExplorer": "https://explorer.hyperlane.xyz",
+  "relayerApi": "http://localhost:3032",
   "chains": {
     "56": {
       "name": "BNB Chain",

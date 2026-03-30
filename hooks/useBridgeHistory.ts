@@ -9,11 +9,11 @@ import { BRIDGE_TOKENS } from '@/config/tokens';
 import { getRpc, rpcCall, isPlaceholderAddress } from '@/config/chainUtils';
 import config from '@/config/bridge-config.json';
 
-const HISTORY_KEY = 'prosperity_bridge_history';
+const RELAYER_API = (config as any).relayerApi || 'http://localhost:3032';
 
 export interface BridgeTx {
   txHash: string;
-  messageId: string;
+  depositNumber: string;
   sourceChainId: number;
   destChainId: number;
   token: string;
@@ -72,47 +72,38 @@ export function useBridgeHistory() {
     setError(undefined);
 
     try {
-      const raw = localStorage.getItem(HISTORY_KEY);
-      const history: any[] = raw ? JSON.parse(raw) : [];
+      const res = await fetch(`${RELAYER_API}/history?address=${address}`, {
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!res.ok) throw new Error(`Relayer API error: ${res.status}`);
+      const data = await res.json();
+      const deposits: any[] = data.deposits || [];
 
-      // Check delivery status for undelivered entries
-      const results: BridgeTx[] = [];
-      for (const h of history) {
-        let delivered = h.delivered;
+      const results: BridgeTx[] = deposits.map((d: any) => {
+        const sourceChainId = d.source_chain || 0;
+        const destChainId = d.target_chain || 0;
+        const tokenAddr = d.token || '';
+        const symbol = resolveTokenSymbol(tokenAddr, sourceChainId);
+        const decimals = resolveTokenDecimals(tokenAddr, sourceChainId);
+        const rawAmount = d.amount || '0';
+        const amount = formatUnits(BigInt(rawAmount), decimals);
+        const delivered = !!(d.tx_hash && d.tx_hash !== 'pending' && d.tx_hash !== 'reverted');
+        const depositKey = d.key || '';
+        const depositNumber = depositKey.includes('_') ? depositKey.split('_')[1] : '';
 
-        // Re-check undelivered entries on-chain
-        if (!delivered && h.messageId && h.destChainId && h.sourceChainId) {
-          delivered = await checkDelivered(h.destChainId, h.sourceChainId, h.messageId);
-        }
-
-        results.push({
-          txHash: h.txHash,
-          messageId: h.messageId,
-          sourceChainId: h.sourceChainId,
-          destChainId: h.destChainId,
-          token: h.token || '',
-          tokenSymbol: h.tokenSymbol || 'Unknown',
-          amount: h.amount || '-',
-          receiver: h.receiver || '',
-          timestamp: h.timestamp || 0,
+        return {
+          txHash: d.deposit_tx || d.tx_hash || '',
+          depositNumber,
+          sourceChainId,
+          destChainId,
+          token: tokenAddr,
+          tokenSymbol: symbol,
+          amount,
+          receiver: d.receiver || '',
+          timestamp: d.created_at || 0,
           delivered,
-        });
-      }
-
-      // Update localStorage with refreshed delivery statuses
-      const updated = results.map(r => ({
-        txHash: r.txHash,
-        messageId: r.messageId,
-        sourceChainId: r.sourceChainId,
-        destChainId: r.destChainId,
-        token: r.token,
-        tokenSymbol: r.tokenSymbol,
-        amount: r.amount,
-        receiver: r.receiver,
-        timestamp: r.timestamp,
-        delivered: r.delivered,
-      }));
-      localStorage.setItem(HISTORY_KEY, JSON.stringify(updated));
+        };
+      });
 
       results.sort((a, b) => b.timestamp - a.timestamp);
       setTxs(results);
@@ -138,6 +129,31 @@ export async function lookupDepositByTxHash(txHash: string): Promise<{
   receiver: string;
   delivered: boolean;
 } | null> {
+  // Try relayer API first
+  try {
+    const res = await fetch(`${RELAYER_API}/check-tx/${txHash}`, {
+      signal: AbortSignal.timeout(15000),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.depositNumber !== undefined) {
+        const sourceChainId = data.sourceChainId || 0;
+        const symbol = resolveTokenSymbol(data.token || '', sourceChainId);
+        const decimals = resolveTokenDecimals(data.token || '', sourceChainId);
+        return {
+          sourceChainId,
+          destChainId: data.destChainId || 0,
+          depositNumber: String(data.depositNumber),
+          tokenSymbol: symbol,
+          amount: data.amount ? formatUnits(BigInt(data.amount), decimals) : '0',
+          receiver: data.receiver || '',
+          delivered: data.delivered || false,
+        };
+      }
+    }
+  } catch { /* fall through to on-chain scan */ }
+
+  // Fallback: scan on-chain
   const chainIds = Object.keys(config.chains).map(Number);
 
   for (const chainId of chainIds) {
