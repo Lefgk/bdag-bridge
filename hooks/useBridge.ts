@@ -3,10 +3,10 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useAccount, useWriteContract, useSwitchChain } from 'wagmi';
 import { parseUnits, maxUint256, decodeEventLog } from 'viem';
-import { PROSPERITY_ROUTER_ABI, PROSPERITY_BRIDGE_ABI, ERC20_ABI } from '@/lib/abi';
+import { BRIDGE_DEPOSIT_ABI, PROSPERITY_BRIDGE_ABI, ERC20_ABI } from '@/lib/abi';
 import { CONTRACTS } from '@/config/contracts';
 import { Token, getDecimals } from '@/config/tokens';
-import { getRpc, rpcCall, getRequiredConfirmations, rotateRpc, getHyperlaneDomain, isPlaceholderAddress } from '@/config/chainUtils';
+import { getRpc, rpcCall, getRequiredConfirmations, rotateRpc, isPlaceholderAddress } from '@/config/chainUtils';
 import bridgeConfig from '@/config/bridge-config.json';
 
 export type BridgeStatus = 'idle' | 'switching' | 'approving' | 'depositing' | 'confirming' | 'waiting_delivery' | 'delivered' | 'error';
@@ -79,14 +79,14 @@ function addToHistory(entry: BridgeHistoryEntry) {
   } catch {}
 }
 
-/** Extract messageId from ERC20Deposited or NativeDeposited event in tx receipt. */
-function extractMessageId(logs: any[], bridgeAddress: string): string | null {
+/** Extract depositNumber from ERC20Deposited or NativeDeposited event in tx receipt. */
+function extractDepositNumber(logs: any[], bridgeAddress: string): bigint | null {
   for (const log of logs) {
     if (log.address.toLowerCase() !== bridgeAddress.toLowerCase()) continue;
     try {
       const decoded = decodeEventLog({ abi: PROSPERITY_BRIDGE_ABI, data: log.data, topics: log.topics });
       if (decoded.eventName === 'ERC20Deposited' || decoded.eventName === 'NativeDeposited') {
-        return (decoded.args as any).messageId as string;
+        return (decoded.args as any).depositNumber as bigint;
       }
     } catch { /* skip non-matching */ }
   }
@@ -164,8 +164,8 @@ export function useBridge() {
     }, 3000);
   }, []);
 
-  /** Poll processedMessages(messageId) on destination chain. */
-  const pollForDelivery = useCallback((destChainId: number, msgId: string) => {
+  /** Poll releasedDeposits(sourceChainId, depositNumber) on destination bridge. */
+  const pollForDelivery = useCallback((destChainId: number, srcChainId: number, depositNum: string) => {
     if (pollRef.current) clearInterval(pollRef.current);
 
     const destBridge = CONTRACTS[destChainId]?.bridge;
@@ -176,14 +176,16 @@ export function useBridge() {
       attempts++;
       if (attempts > 720) {
         clearInterval(pollRef.current!);
-        setError('Delivery polling timed out after 60 minutes. Your deposit is safe — check Hyperlane Explorer or try again later.');
+        setError('Delivery polling timed out after 60 minutes. Your deposit is safe — the relayer will process it.');
         setStatus('error');
         return;
       }
       try {
         const destRpc = getRpc(destChainId);
-        // processedMessages(bytes32) selector = keccak256("processedMessages(bytes32)") first 4 bytes
-        const data = '0x7dfd1c0c' + msgId.slice(2).padStart(64, '0');
+        // releasedDeposits(uint256,uint256) selector = 0x047a7fe5
+        const data = '0x047a7fe5' +
+          BigInt(srcChainId).toString(16).padStart(64, '0') +
+          BigInt(depositNum).toString(16).padStart(64, '0');
         const result = await rpcCall(destRpc, 'eth_call', [{ to: destBridge, data }, 'latest']);
         const delivered = !!(result && result !== '0x' + '0'.repeat(64));
 
@@ -214,8 +216,8 @@ export function useBridge() {
       if (saved.sourceChainId) setActiveSourceChainId(saved.sourceChainId);
       if (saved.destChainId) setActiveDestChainId(saved.destChainId);
 
-      if (saved.messageId && saved.destChainId) {
-        pollForDelivery(saved.destChainId, saved.messageId);
+      if (saved.messageId && saved.destChainId && saved.sourceChainId) {
+        pollForDelivery(saved.destChainId, saved.sourceChainId, saved.messageId);
       }
     } else if (saved.status === 'delivered') {
       setStatus('delivered');
@@ -262,17 +264,18 @@ export function useBridge() {
     setDepositBlock(blockNum);
     startConfirmationPolling(sourceChainId, blockNum);
 
-    const msgId = extractMessageId(receipt.logs, contracts.bridge);
-    if (msgId) {
-      setMessageId(msgId);
+    const depositNum = extractDepositNumber(receipt.logs, contracts.bridge);
+    const depositId = depositNum !== null ? depositNum.toString() : undefined;
+    if (depositId) {
+      setMessageId(depositId); // reuse messageId state for depositNumber
       setStatus('waiting_delivery');
-      persistState('waiting_delivery', hash, msgId, sourceChainId, destChainId);
-      pollForDelivery(destChainId, msgId);
+      persistState('waiting_delivery', hash, depositId, sourceChainId, destChainId);
+      pollForDelivery(destChainId, sourceChainId, depositId);
 
       // Save to history
       addToHistory({
         txHash: hash,
-        messageId: msgId,
+        messageId: depositId,
         sourceChainId,
         destChainId,
         token: token.addresses[sourceChainId] || '',
@@ -285,7 +288,7 @@ export function useBridge() {
     } else {
       setStatus('waiting_delivery');
       persistState('waiting_delivery', hash, undefined, sourceChainId, destChainId);
-      setError('Could not extract message ID from receipt. Track your tx on Hyperlane Explorer.');
+      setError('Could not extract deposit number from receipt. The relayer will still process your deposit.');
     }
   }, [startConfirmationPolling, persistState, pollForDelivery]);
 
@@ -313,8 +316,6 @@ export function useBridge() {
       return;
     }
 
-    const destDomain = getHyperlaneDomain(destChainId);
-
     try {
       if (chainId !== sourceChainId) {
         setStatus('switching');
@@ -322,40 +323,16 @@ export function useBridge() {
       }
 
       const amountParsed = parseUnits(amount, getDecimals(token, sourceChainId));
-
-      // Quote IGP fee
-      let igpFee = 0n;
-      try {
-        const rpc = getRpc(sourceChainId);
-        const tokenAddr = token.isNative
-          ? '0x0000000000000000000000000000000000000000'
-          : token.addresses[sourceChainId];
-        // quoteBridgeFee(uint32,address,address,uint256)
-        const selector = '0x51505529'; // TODO: compute real selector from ABI
-        const encodedArgs =
-          destDomain.toString(16).padStart(64, '0') +
-          to.slice(2).padStart(64, '0') +
-          tokenAddr.slice(2).padStart(64, '0') +
-          amountParsed.toString(16).padStart(64, '0');
-        const result = await rpcCall(rpc, 'eth_call', [
-          { to: contracts.router, data: selector + encodedArgs },
-          'latest',
-        ]);
-        if (result && result !== '0x') {
-          igpFee = BigInt(result);
-        }
-      } catch {
-        // If quote fails, proceed with 0 (tx may fail if IGP required)
-      }
+      const bridgeAddr = contracts.bridge;
 
       if (token.isNative) {
         setStatus('depositing');
         const hash = await writeContractAsync({
-          address: contracts.router,
-          abi: PROSPERITY_ROUTER_ABI,
-          functionName: 'bridgeNative',
-          args: [amountParsed, to, destDomain],
-          value: amountParsed + igpFee,
+          address: bridgeAddr,
+          abi: BRIDGE_DEPOSIT_ABI,
+          functionName: 'depositNative',
+          args: [to, BigInt(destChainId)],
+          value: amountParsed,
           ...chainGasOverrides(sourceChainId),
         });
         setTxHash(hash);
@@ -367,28 +344,12 @@ export function useBridge() {
       } else {
         const tokenAddr = token.addresses[sourceChainId] as `0x${string}`;
 
-        // Fetch approval target (the Bridge contract, not the Router)
-        let approvalTarget: `0x${string}` = contracts.bridge;
-        try {
-          const rpc = getRpc(sourceChainId);
-          // approvalTarget() selector = 0xb8953594
-          const result = await rpcCall(rpc, 'eth_call', [
-            { to: contracts.router, data: '0xb8953594' },
-            'latest',
-          ]);
-          if (result && result !== '0x' && result.length >= 66) {
-            approvalTarget = ('0x' + result.slice(26)) as `0x${string}`;
-          }
-        } catch {
-          // Fallback to bridge address from config
-        }
-
-        // Check existing allowance
+        // Check existing allowance against bridge contract
         let needsApproval = true;
         try {
           const rpc = getRpc(sourceChainId);
           const ownerPadded = address.slice(2).toLowerCase().padStart(64, '0');
-          const spenderPadded = approvalTarget.slice(2).toLowerCase().padStart(64, '0');
+          const spenderPadded = bridgeAddr.slice(2).toLowerCase().padStart(64, '0');
           const data = '0xdd62ed3e' + ownerPadded + spenderPadded;
           const result = await rpcCall(rpc, 'eth_call', [{ to: tokenAddr, data }, 'latest']);
           if (result && result !== '0x') {
@@ -405,7 +366,7 @@ export function useBridge() {
             address: tokenAddr,
             abi: ERC20_ABI,
             functionName: 'approve',
-            args: [approvalTarget, maxUint256],
+            args: [bridgeAddr, maxUint256],
             ...chainGasOverrides(sourceChainId),
           });
           const approveReceipt = await waitForReceipt(sourceChainId, approveHash);
@@ -418,11 +379,10 @@ export function useBridge() {
 
         setStatus('depositing');
         const hash = await writeContractAsync({
-          address: contracts.router,
-          abi: PROSPERITY_ROUTER_ABI,
-          functionName: 'bridgeERC20',
-          args: [tokenAddr, amountParsed, to, destDomain],
-          value: igpFee,
+          address: bridgeAddr,
+          abi: BRIDGE_DEPOSIT_ABI,
+          functionName: 'depositERC20',
+          args: [tokenAddr, amountParsed, to, BigInt(destChainId)],
           ...chainGasOverrides(sourceChainId),
         });
         setTxHash(hash);

@@ -9,7 +9,7 @@ import { ChainStatus } from './ChainStatus';
 import { useBridge } from '@/hooks/useBridge';
 import { CONTRACTS } from '@/config/contracts';
 import { getTokensForChain, Token, getDecimals } from '@/config/tokens';
-import { getDestinationChains, chainLabel, getHyperlaneDomain, isPlaceholderAddress, getRpc, rpcCall } from '@/config/chainUtils';
+import { getDestinationChains, isPlaceholderAddress, getRpc, rpcCall } from '@/config/chainUtils';
 import config from '@/config/bridge-config.json';
 
 // Build chain list from config for the chain selector
@@ -27,7 +27,6 @@ export function BridgeForm() {
   const [token, setToken] = useState<Token | null>(null);
   const [amount, setAmount] = useState('');
   const [mounted, setMounted] = useState(false);
-  const [igpFee, setIgpFee] = useState<string>('0');
   useEffect(() => { setMounted(true); }, []);
 
   const destChains = useMemo(() => getDestinationChains(sourceChainId), [sourceChainId]);
@@ -45,55 +44,53 @@ export function BridgeForm() {
     query: { enabled: isConnected && !!token },
   });
 
-  // Quote IGP fee and protocol fee
+  // Quote protocol fee
   const amountParsed = useMemo(() => {
     if (!token || !amount || parseFloat(amount) <= 0) return undefined;
     try { return parseUnits(amount, getDecimals(token, sourceChainId)); } catch { return undefined; }
   }, [token, amount, sourceChainId]);
 
   const [protocolFeeNum, setProtocolFeeNum] = useState(0);
-  const [igpFeeNum, setIgpFeeNum] = useState(0);
 
   useEffect(() => {
     if (!amountParsed || !token) {
       setProtocolFeeNum(0);
-      setIgpFeeNum(0);
       return;
     }
     // Default 0.6% protocol fee estimate
     setProtocolFeeNum(parseFloat(amount) * 0.006);
     setIgpFeeNum(0);
 
-    const routerAddr = CONTRACTS[sourceChainId]?.router;
-    if (!routerAddr || isPlaceholderAddress(routerAddr)) return;
+    const bridgeAddr = CONTRACTS[sourceChainId]?.bridge;
+    if (!bridgeAddr || isPlaceholderAddress(bridgeAddr)) return;
 
-    // Try to fetch real fees from contract
+    // Fetch real fee rate from bridge contract
     const fetchFees = async () => {
       try {
         const rpc = getRpc(sourceChainId);
-        const destDomain = getHyperlaneDomain(targetChainId);
         const tkAddr = token.isNative ? '0x0000000000000000000000000000000000000000' : token.addresses[sourceChainId];
-        const receiver = address || '0x0000000000000000000000000000000000000000';
 
-        // quoteBridgeFee
-        const quoteData = '0x51505529' +
-          destDomain.toString(16).padStart(64, '0') +
-          receiver.slice(2).padStart(64, '0') +
-          tkAddr.slice(2).padStart(64, '0') +
-          amountParsed.toString(16).padStart(64, '0');
-        const quoteResult = await rpcCall(rpc, 'eth_call', [{ to: routerAddr, data: quoteData }, 'latest'], 5000);
-        if (quoteResult && quoteResult !== '0x') {
-          setIgpFeeNum(parseFloat(formatUnits(BigInt(quoteResult), 18)));
+        // Check hasCustomFee(token) - selector 0x721eaecd
+        const hasCustomData = '0x721eaecd' + tkAddr.slice(2).padStart(64, '0');
+        const hasCustomResult = await rpcCall(rpc, 'eth_call', [{ to: bridgeAddr, data: hasCustomData }, 'latest'], 5000);
+        const hasCustom = hasCustomResult && hasCustomResult !== '0x' + '0'.repeat(64);
+
+        let feeRate: bigint;
+        if (hasCustom) {
+          // bridgeFees(token) - selector 0x58db2eef
+          const feeData = '0x58db2eef' + tkAddr.slice(2).padStart(64, '0');
+          const feeResult = await rpcCall(rpc, 'eth_call', [{ to: bridgeAddr, data: feeData }, 'latest'], 5000);
+          feeRate = BigInt(feeResult);
+        } else {
+          // defaultBridgeFee() - selector 0x6ced0c92
+          const feeResult = await rpcCall(rpc, 'eth_call', [{ to: bridgeAddr, data: '0x6ced0c92' }, 'latest'], 5000);
+          feeRate = BigInt(feeResult);
         }
 
-        // getProtocolFeeAmount
-        const originDomain = getHyperlaneDomain(sourceChainId);
-        const protoData = '0x' + 'TODO_SELECTOR' +
-          originDomain.toString(16).padStart(64, '0') +
-          tkAddr.slice(2).padStart(64, '0') +
-          amountParsed.toString(16).padStart(64, '0');
-        // Protocol fee defaults to 0.6% if contract call fails
-      } catch { /* use defaults */ }
+        // feeRate is in PPM (parts per million), so fee% = feeRate / 1_000_000
+        const feePercent = Number(feeRate) / 1_000_000;
+        setProtocolFeeNum(parseFloat(amount) * feePercent);
+      } catch { /* use default 0.6% */ }
     };
     fetchFees();
   }, [amountParsed, token, sourceChainId, targetChainId, address, amount]);
@@ -134,8 +131,8 @@ export function BridgeForm() {
   const receive = receiveNum > 0 ? receiveNum.toFixed(precision) : '0';
   const isActive = status !== 'idle' && status !== 'delivered' && status !== 'error';
 
-  const routerContracts = CONTRACTS[sourceChainId];
-  const notDeployed = !routerContracts || isPlaceholderAddress(routerContracts.router);
+  const chainContracts = CONTRACTS[sourceChainId];
+  const notDeployed = !chainContracts || isPlaceholderAddress(chainContracts.bridge);
 
   const bridgingRef = useRef(false);
   const handleBridge = () => {
@@ -252,12 +249,6 @@ export function BridgeForm() {
               <span>Protocol Fee (0.6%)</span>
               <span className="font-mono">{fee} {token?.symbol}</span>
             </div>
-            {igpFeeNum > 0 && (
-              <div className="flex justify-between text-xs text-gray-500">
-                <span>Hyperlane Gas Fee</span>
-                <span className="font-mono">{igpFeeNum.toFixed(6)} ETH</span>
-              </div>
-            )}
           </div>
         )}
 

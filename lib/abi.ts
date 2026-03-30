@@ -1,79 +1,45 @@
-// ProsperityBridge v7 — Hyperlane Router ABI
-export const PROSPERITY_ROUTER_ABI = [
+// CrossChainBridgeERC20Upgradeable — deposit functions called directly on bridge
+export const BRIDGE_DEPOSIT_ABI = [
   {
     inputs: [
       { name: '_token', type: 'address' },
       { name: '_amount', type: 'uint256' },
-      { name: '_receiver', type: 'address' },
-      { name: '_destinationDomain', type: 'uint32' },
+      { name: '_receiverAddress', type: 'address' },
+      { name: '_targetChainId', type: 'uint256' },
     ],
-    name: 'bridgeERC20',
+    name: 'depositERC20',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
+    inputs: [
+      { name: '_receiverAddress', type: 'address' },
+      { name: '_targetChainId', type: 'uint256' },
+    ],
+    name: 'depositNative',
     outputs: [],
     stateMutability: 'payable',
     type: 'function',
   },
   {
-    inputs: [
-      { name: '_amount', type: 'uint256' },
-      { name: '_receiver', type: 'address' },
-      { name: '_destinationDomain', type: 'uint32' },
-    ],
-    name: 'bridgeNative',
-    outputs: [],
-    stateMutability: 'payable',
-    type: 'function',
-  },
-  {
-    inputs: [
-      { name: '_destinationDomain', type: 'uint32' },
-      { name: '_receiver', type: 'address' },
-      { name: '_token', type: 'address' },
-      { name: '_amount', type: 'uint256' },
-    ],
-    name: 'quoteBridgeFee',
+    inputs: [],
+    name: 'defaultBridgeFee',
     outputs: [{ name: '', type: 'uint256' }],
     stateMutability: 'view',
     type: 'function',
   },
   {
-    inputs: [],
-    name: 'approvalTarget',
-    outputs: [{ name: '', type: 'address' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [
-      { name: '_originDomain', type: 'uint32' },
-      { name: '_token', type: 'address' },
-      { name: '_amount', type: 'uint256' },
-    ],
-    name: 'getProtocolFeeAmount',
+    inputs: [{ name: '', type: 'address' }],
+    name: 'bridgeFees',
     outputs: [{ name: '', type: 'uint256' }],
     stateMutability: 'view',
     type: 'function',
   },
   {
-    inputs: [],
-    name: 'getLocalDomain',
-    outputs: [{ name: '', type: 'uint32' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [{ name: '_domain', type: 'uint32' }],
-    name: 'isDestinationConfigured',
+    inputs: [{ name: '', type: 'address' }],
+    name: 'hasCustomFee',
     outputs: [{ name: '', type: 'bool' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-  {
-    inputs: [
-      { name: '_originDomain', type: 'uint32' },
-      { name: '_sourceToken', type: 'address' },
-    ],
-    name: 'getWrappedToken',
-    outputs: [{ name: '', type: 'address' }],
     stateMutability: 'view',
     type: 'function',
   },
