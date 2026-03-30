@@ -88,7 +88,12 @@ export function useBridgeHistory() {
       const data = await res.json();
       const deposits: any[] = data.deposits || [];
 
-      const results: BridgeTx[] = deposits.map((d: any) => {
+      // Filter out entries with no useful data (old entries from previous bridge deployments)
+      const validDeposits = deposits.filter((d: any) =>
+        d.source_chain && d.target_chain && d.token && d.amount && d.deposit_tx
+      );
+
+      const results: BridgeTx[] = validDeposits.map((d: any) => {
         const sourceChainId = d.source_chain || 0;
         const destChainId = d.target_chain || 0;
         const tokenAddr = d.token || '';
