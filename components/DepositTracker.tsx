@@ -1,7 +1,7 @@
 'use client';
 
 import type { BridgeStatus } from '@/hooks/useBridge';
-import { chainName, explorerTxUrl, getHyperlaneExplorerUrl } from '@/config/chainUtils';
+import { chainName, explorerTxUrl } from '@/config/chainUtils';
 
 interface Props {
   status: BridgeStatus;
@@ -40,7 +40,7 @@ export function DepositTracker({ status, txHash, messageId, sourceChainId, destC
   const steps = [
     'Approve Token',
     'Deposit to Bridge',
-    'Hyperlane Message Delivery',
+    'Relayer Delivery',
     `Delivered on ${destName}`,
   ];
 
@@ -70,28 +70,34 @@ export function DepositTracker({ status, txHash, messageId, sourceChainId, destC
         )}
       </div>
 
-      {isComplete && (
-        <div className="mb-4 p-3 rounded-lg bg-green-500/10 border border-green-500/30">
-          <p className="text-green-400 text-sm font-semibold">Bridge complete! Tokens delivered on {destName}.</p>
-        </div>
-      )}
-
-      {status === 'waiting_delivery' && (
-        <div className="mb-4 p-3 rounded-lg bg-accent/10 border border-accent/30">
-          <p className="text-accent text-sm">Deposit confirmed on {srcName}. Waiting for Hyperlane delivery to {destName}...</p>
+      {/* Status message — always visible */}
+      <div className={`mb-4 p-3 rounded-lg ${
+        status === 'error' ? 'bg-red-500/10 border border-red-500/30' :
+        status === 'waiting_delivery' ? 'bg-accent/10 border border-accent/30' :
+        status === 'approving' ? 'bg-yellow-500/10 border border-yellow-500/30' :
+        status === 'depositing' ? 'bg-yellow-500/10 border border-yellow-500/30' :
+        status === 'confirming' ? 'bg-accent/10 border border-accent/30' :
+        'bg-accent/10 border border-accent/30'
+      }`}>
+        <p className={`text-sm ${
+          status === 'error' ? 'text-red-400' :
+          status === 'approving' || status === 'depositing' ? 'text-yellow-400' :
+          'text-accent'
+        }`}>
+          {status === 'approving' && 'Approving token for bridge contract...'}
+          {status === 'depositing' && 'Confirm the deposit transaction in your wallet...'}
+          {status === 'confirming' && `Deposit submitted on ${srcName}. Waiting for block confirmations...`}
+          {status === 'waiting_delivery' && `Deposit confirmed on ${srcName}. Waiting for relayer delivery to ${destName}...`}
+          {status === 'delivered' && `Bridge complete! Tokens delivered on ${destName}.`}
+          {status === 'error' && (error || 'An error occurred.')}
+        </p>
+        {status === 'waiting_delivery' && (
           <p className="text-gray-500 text-xs mt-1">This usually takes 1-5 minutes depending on the chains.</p>
-          {messageId && (
-            <a
-              href={getHyperlaneExplorerUrl(messageId)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-accent hover:text-accent-dim mt-1 inline-block"
-            >
-              Track on Hyperlane Explorer ↗
-            </a>
-          )}
-        </div>
-      )}
+        )}
+        {status === 'confirming' && (
+          <p className="text-gray-500 text-xs mt-1">Please wait while the transaction reaches finality.</p>
+        )}
+      </div>
 
       <div className="space-y-3">
         {steps.map((stepLabel, i) => {
@@ -108,7 +114,7 @@ export function DepositTracker({ status, txHash, messageId, sourceChainId, destC
 
           let label = stepLabel;
           if (i === 2 && showConfirmations) {
-            label = `Hyperlane Message Delivery (${Math.min(confCount, confRequired)}/${confRequired} confirmations)`;
+            label = `Relayer Delivery (${Math.min(confCount, confRequired)}/${confRequired} confirmations)`;
           }
 
           return (
@@ -163,22 +169,10 @@ export function DepositTracker({ status, txHash, messageId, sourceChainId, destC
           </div>
           {messageId && (
             <div className="flex items-center justify-between gap-2">
-              <span className="text-xs text-gray-500 shrink-0">Hyperlane</span>
-              <a
-                href={getHyperlaneExplorerUrl(messageId)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-accent hover:text-accent-dim truncate font-mono transition-colors"
-              >
-                Track Message ↗
-              </a>
+              <span className="text-xs text-gray-500 shrink-0">Deposit #</span>
+              <span className="text-xs font-mono text-gray-300">{messageId}</span>
             </div>
           )}
-        </div>
-      )}
-      {error && (
-        <div className="mt-3 p-2 rounded bg-red-500/10 border border-red-500/20">
-          <p className="text-xs text-red-400">{error}</p>
         </div>
       )}
     </div>

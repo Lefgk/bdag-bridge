@@ -139,16 +139,16 @@ export const PROSPERITY_BRIDGE_ABI = [
     stateMutability: 'nonpayable',
     type: 'function',
   },
-  // Events
+  // Events — must match CrossChainBridgeERC20Upgradeable.sol
   {
     anonymous: false,
     inputs: [
-      { indexed: true, name: 'messageId', type: 'bytes32' },
       { indexed: true, name: 'token', type: 'address' },
-      { indexed: false, name: 'amount', type: 'uint256' },
+      { indexed: true, name: 'amount', type: 'uint256' },
       { indexed: true, name: 'receiver', type: 'address' },
-      { indexed: false, name: 'destinationDomain', type: 'uint32' },
-      { indexed: false, name: 'nonce', type: 'uint256' },
+      { indexed: false, name: 'sourceChainId', type: 'uint256' },
+      { indexed: false, name: 'targetChainId', type: 'uint256' },
+      { indexed: false, name: 'depositNumber', type: 'uint256' },
     ],
     name: 'ERC20Deposited',
     type: 'event',
@@ -156,11 +156,11 @@ export const PROSPERITY_BRIDGE_ABI = [
   {
     anonymous: false,
     inputs: [
-      { indexed: true, name: 'messageId', type: 'bytes32' },
-      { indexed: false, name: 'amount', type: 'uint256' },
+      { indexed: true, name: 'amount', type: 'uint256' },
       { indexed: true, name: 'receiver', type: 'address' },
-      { indexed: false, name: 'destinationDomain', type: 'uint32' },
-      { indexed: false, name: 'nonce', type: 'uint256' },
+      { indexed: false, name: 'sourceChainId', type: 'uint256' },
+      { indexed: false, name: 'targetChainId', type: 'uint256' },
+      { indexed: false, name: 'depositNumber', type: 'uint256' },
     ],
     name: 'NativeDeposited',
     type: 'event',
@@ -169,9 +169,10 @@ export const PROSPERITY_BRIDGE_ABI = [
     anonymous: false,
     inputs: [
       { indexed: true, name: 'token', type: 'address' },
-      { indexed: false, name: 'amount', type: 'uint256' },
+      { indexed: true, name: 'amount', type: 'uint256' },
       { indexed: true, name: 'receiver', type: 'address' },
-      { indexed: false, name: 'originDomain', type: 'uint32' },
+      { indexed: false, name: 'depositChainId', type: 'uint256' },
+      { indexed: false, name: 'depositNumber', type: 'uint256' },
     ],
     name: 'ERC20Released',
     type: 'event',

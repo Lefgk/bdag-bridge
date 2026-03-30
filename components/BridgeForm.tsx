@@ -59,7 +59,6 @@ export function BridgeForm() {
     }
     // Default 0.6% protocol fee estimate
     setProtocolFeeNum(parseFloat(amount) * 0.006);
-    setIgpFeeNum(0);
 
     const bridgeAddr = CONTRACTS[sourceChainId]?.bridge;
     if (!bridgeAddr || isPlaceholderAddress(bridgeAddr)) return;

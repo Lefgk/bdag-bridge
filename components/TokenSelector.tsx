@@ -80,7 +80,10 @@ export function TokenSelector({ tokens, selected, onSelect, sourceChainId, disab
 
       {/* Modal overlay */}
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setOpen(false); }}
+        >
           <div className="bg-card border border-gray-700 rounded-2xl shadow-2xl w-full max-w-md max-h-[70vh] flex flex-col">
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700/50">
               <span className="text-sm font-semibold text-white">Select Token</span>
