@@ -45,6 +45,16 @@ export function Navbar() {
             >
               Tokens
             </Link>
+            <Link
+              href="/balances"
+              className={`px-4 py-2 rounded-lg text-sm transition-colors ${
+                pathname === '/balances'
+                  ? 'bg-card text-accent'
+                  : 'text-gray-400 hover:text-gray-200'
+              }`}
+            >
+              Balances
+            </Link>
             {pathname === '/blast' && (
               <Link
                 href="/blast"
