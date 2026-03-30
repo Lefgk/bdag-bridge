@@ -12,7 +12,21 @@ import bridgeConfig from '@/config/bridge-config.json';
 export type BridgeStatus = 'idle' | 'switching' | 'approving' | 'depositing' | 'confirming' | 'waiting_delivery' | 'delivered' | 'error';
 
 const STORAGE_KEY = 'prosperity_bridge_state';
+const STORAGE_VERSION_KEY = 'prosperity_bridge_version';
 const HISTORY_KEY = 'prosperity_bridge_history';
+const CURRENT_VERSION = '2'; // Bump to clear stale Hyperlane-era state
+
+// Auto-clear stale localStorage on version mismatch
+try {
+  if (typeof window !== 'undefined') {
+    const v = localStorage.getItem(STORAGE_VERSION_KEY);
+    if (v !== CURRENT_VERSION) {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(HISTORY_KEY);
+      localStorage.setItem(STORAGE_VERSION_KEY, CURRENT_VERSION);
+    }
+  }
+} catch {}
 
 function chainGasOverrides(chainId: number) {
   const chain = bridgeConfig.chains[String(chainId) as keyof typeof bridgeConfig.chains];

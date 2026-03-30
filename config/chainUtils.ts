@@ -41,17 +41,6 @@ export function getDestinationChains(sourceChainId: number): number[] {
   return [BDAG_CHAIN_ID];
 }
 
-/** Lookup Hyperlane domain ID for a chain. */
-export function getHyperlaneDomain(chainId: number): number {
-  const chain = config.chains[String(chainId) as keyof typeof config.chains] as any;
-  return chain?.hyperlaneDomain ?? chainId;
-}
-
-/** Build Hyperlane Explorer URL for a message ID. */
-export function getHyperlaneExplorerUrl(messageId: string): string {
-  return `${config.hyperlaneExplorer}/?search=${messageId}`;
-}
-
 /** Check if an address is the zero placeholder (contract not deployed yet). */
 export function isPlaceholderAddress(addr: string): boolean {
   return !addr || addr === ZERO_ADDRESS;

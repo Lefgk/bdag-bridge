@@ -47,12 +47,11 @@ function StatusBadge({ delivered }: { delivered: boolean }) {
 interface LookupResult {
   sourceChainId: number;
   destChainId: number;
-  messageId: string;
+  depositNumber: string;
   tokenSymbol: string;
   amount: string;
   receiver: string;
   delivered: boolean;
-  hyperlaneUrl: string;
 }
 
 export function TransactionHistory() {
@@ -147,23 +146,14 @@ export function TransactionHistory() {
               <span className="text-gray-400">Amount</span>
               <span className="text-white">{parseFloat(lookupResult.amount).toFixed(4)}</span>
             </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400">Deposit #</span>
+              <span className="text-white font-mono">{lookupResult.depositNumber}</span>
+            </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-400">Status</span>
               <StatusBadge delivered={lookupResult.delivered} />
             </div>
-            {lookupResult.hyperlaneUrl && (
-              <div className="flex justify-between">
-                <span className="text-gray-400">Hyperlane</span>
-                <a
-                  href={lookupResult.hyperlaneUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-accent hover:text-accent-dim text-xs"
-                >
-                  Track on Explorer ↗
-                </a>
-              </div>
-            )}
           </div>
         )}
         {lookupDone && lookupError && (
@@ -221,8 +211,7 @@ export function TransactionHistory() {
                   <th className="text-left pb-2 pr-3 font-medium">Direction</th>
                   <th className="text-left pb-2 pr-3 font-medium">Deposit Tx</th>
                   <th className="text-right pb-2 pr-3 font-medium">Amount</th>
-                  <th className="text-right pb-2 pr-3 font-medium">Status</th>
-                  <th className="text-right pb-2 font-medium">Track</th>
+                  <th className="text-right pb-2 font-medium">Status</th>
                 </tr>
               </thead>
               <tbody>
@@ -243,20 +232,8 @@ export function TransactionHistory() {
                     <td className="py-2.5 pr-3 text-right text-white whitespace-nowrap">
                       {isNaN(parseFloat(tx.amount)) ? '—' : `${parseFloat(tx.amount).toFixed(4)} ${tx.tokenSymbol}`}
                     </td>
-                    <td className="py-2.5 pr-3 text-right">
-                      <StatusBadge delivered={tx.delivered} />
-                    </td>
                     <td className="py-2.5 text-right">
-                      {tx.hyperlaneUrl && (
-                        <a
-                          href={tx.hyperlaneUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[10px] px-2 py-0.5 rounded bg-accent/10 text-accent border border-accent/30 hover:bg-accent/20 transition-colors whitespace-nowrap"
-                        >
-                          Hyperlane ↗
-                        </a>
-                      )}
+                      <StatusBadge delivered={tx.delivered} />
                     </td>
                   </tr>
                 ))}

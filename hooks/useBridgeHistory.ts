@@ -6,7 +6,7 @@ import { decodeEventLog, formatUnits } from 'viem';
 import { PROSPERITY_BRIDGE_ABI } from '@/lib/abi';
 import { CONTRACTS } from '@/config/contracts';
 import { BRIDGE_TOKENS } from '@/config/tokens';
-import { getRpc, rpcCall, getHyperlaneExplorerUrl, isPlaceholderAddress } from '@/config/chainUtils';
+import { getRpc, rpcCall, isPlaceholderAddress } from '@/config/chainUtils';
 import config from '@/config/bridge-config.json';
 
 const HISTORY_KEY = 'prosperity_bridge_history';
@@ -22,7 +22,6 @@ export interface BridgeTx {
   receiver: string;
   timestamp: number;
   delivered: boolean;
-  hyperlaneUrl: string;
 }
 
 function resolveTokenSymbol(tokenAddr: string, chainId: number): string {
@@ -41,6 +40,23 @@ function resolveTokenDecimals(tokenAddr: string, chainId: number): number {
     if (a && a.toLowerCase() === addr) return t.decimals[chainId] ?? 18;
   }
   return 18;
+}
+
+/** Check releasedDeposits(sourceChainId, depositNumber) on destination bridge. */
+async function checkDelivered(destChainId: number, sourceChainId: number, depositNumber: string): Promise<boolean> {
+  const destBridge = CONTRACTS[destChainId]?.bridge;
+  if (!destBridge || isPlaceholderAddress(destBridge)) return false;
+  try {
+    const destRpc = getRpc(destChainId);
+    // releasedDeposits(uint256,uint256) selector = 0x047a7fe5
+    const data = '0x047a7fe5' +
+      BigInt(sourceChainId).toString(16).padStart(64, '0') +
+      BigInt(depositNumber).toString(16).padStart(64, '0');
+    const result = await rpcCall(destRpc, 'eth_call', [{ to: destBridge, data }, 'latest'], 5000);
+    return !!(result && result !== '0x' + '0'.repeat(64));
+  } catch {
+    return false;
+  }
 }
 
 export function useBridgeHistory() {
@@ -65,16 +81,8 @@ export function useBridgeHistory() {
         let delivered = h.delivered;
 
         // Re-check undelivered entries on-chain
-        if (!delivered && h.messageId && h.destChainId) {
-          const destBridge = CONTRACTS[h.destChainId]?.bridge;
-          if (destBridge && !isPlaceholderAddress(destBridge)) {
-            try {
-              const destRpc = getRpc(h.destChainId);
-              const data = '0x7dfd1c0c' + h.messageId.slice(2).padStart(64, '0');
-              const result = await rpcCall(destRpc, 'eth_call', [{ to: destBridge, data }, 'latest'], 5000);
-              delivered = !!(result && result !== '0x' + '0'.repeat(64));
-            } catch { /* keep current status */ }
-          }
+        if (!delivered && h.messageId && h.destChainId && h.sourceChainId) {
+          delivered = await checkDelivered(h.destChainId, h.sourceChainId, h.messageId);
         }
 
         results.push({
@@ -88,7 +96,6 @@ export function useBridgeHistory() {
           receiver: h.receiver || '',
           timestamp: h.timestamp || 0,
           delivered,
-          hyperlaneUrl: h.messageId ? getHyperlaneExplorerUrl(h.messageId) : '',
         });
       }
 
@@ -125,12 +132,11 @@ export function useBridgeHistory() {
 export async function lookupDepositByTxHash(txHash: string): Promise<{
   sourceChainId: number;
   destChainId: number;
-  messageId: string;
+  depositNumber: string;
   tokenSymbol: string;
   amount: string;
   receiver: string;
   delivered: boolean;
-  hyperlaneUrl: string;
 } | null> {
   const chainIds = Object.keys(config.chains).map(Number);
 
@@ -149,19 +155,10 @@ export async function lookupDepositByTxHash(txHash: string): Promise<{
           const decoded = decodeEventLog({ abi: PROSPERITY_BRIDGE_ABI, data: log.data, topics: log.topics });
           if (decoded.eventName === 'ERC20Deposited' || decoded.eventName === 'NativeDeposited') {
             const args = decoded.args as any;
-            const messageId = args.messageId as string;
-            const destDomain = Number(args.destinationDomain);
+            const depositNumber = String(args.depositNumber);
+            const destChainId = Number(args.targetChainId);
             const amount = args.amount as bigint;
             const receiver = args.receiver as string;
-
-            // Find destChainId from domain
-            let destChainId = destDomain;
-            for (const [cid, cdata] of Object.entries(config.chains)) {
-              if ((cdata as any).hyperlaneDomain === destDomain) {
-                destChainId = Number(cid);
-                break;
-              }
-            }
 
             let tokenSymbol = 'Unknown';
             let decimals = 18;
@@ -173,27 +170,16 @@ export async function lookupDepositByTxHash(txHash: string): Promise<{
               tokenSymbol = 'Native';
             }
 
-            // Check delivery status
-            let delivered = false;
-            const destBridge = CONTRACTS[destChainId]?.bridge;
-            if (destBridge && !isPlaceholderAddress(destBridge)) {
-              try {
-                const destRpc = getRpc(destChainId);
-                const data = '0x7dfd1c0c' + messageId.slice(2).padStart(64, '0');
-                const result = await rpcCall(destRpc, 'eth_call', [{ to: destBridge, data }, 'latest']);
-                delivered = !!(result && result !== '0x' + '0'.repeat(64));
-              } catch {}
-            }
+            const delivered = await checkDelivered(destChainId, chainId, depositNumber);
 
             return {
               sourceChainId: chainId,
               destChainId,
-              messageId,
+              depositNumber,
               tokenSymbol,
               amount: formatUnits(amount, decimals),
               receiver,
               delivered,
-              hyperlaneUrl: getHyperlaneExplorerUrl(messageId),
             };
           }
         } catch { /* skip */ }
