@@ -27,11 +27,19 @@ export interface BridgeTx {
 
 function resolveTokenSymbol(tokenAddr: string, chainId: number): string {
   const addr = tokenAddr.toLowerCase();
+  // Check the source chain first
   for (const t of BRIDGE_TOKENS) {
     const a = t.addresses[chainId];
     if (a && a.toLowerCase() === addr) return t.symbol;
   }
-  return 'Unknown';
+  // Fallback: check ALL chains in case the address matches a different chain entry
+  for (const t of BRIDGE_TOKENS) {
+    for (const cid of Object.keys(t.addresses)) {
+      if (t.addresses[Number(cid)]?.toLowerCase() === addr) return t.symbol;
+    }
+  }
+  // Show truncated address if unknown
+  return addr.slice(0, 6) + '...' + addr.slice(-4);
 }
 
 function resolveTokenDecimals(tokenAddr: string, chainId: number): number {
