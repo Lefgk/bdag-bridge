@@ -26,6 +26,16 @@ const nextConfig = {
     return config;
   },
 
+  // Proxy relayer API to avoid CORS/ad-blocker issues
+  async rewrites() {
+    return [
+      {
+        source: '/api/relayer/:path*',
+        destination: 'http://localhost:3032/:path*',
+      },
+    ];
+  },
+
   // Compress responses
   compress: true,
 

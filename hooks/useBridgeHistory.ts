@@ -9,7 +9,7 @@ import { BRIDGE_TOKENS } from '@/config/tokens';
 import { getRpc, rpcCall, isPlaceholderAddress } from '@/config/chainUtils';
 import config from '@/config/bridge-config.json';
 
-const RELAYER_API = (config as any).relayerApi || 'http://localhost:3032';
+const RELAYER_API = '/api/relayer';
 
 export interface BridgeTx {
   txHash: string;

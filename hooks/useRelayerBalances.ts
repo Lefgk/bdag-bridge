@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import config from '@/config/bridge-config.json';
 
-const RELAYER_API = (config as any).relayerApi || 'http://localhost:3032';
+const RELAYER_API = '/api/relayer';
 
 export interface ChainBalance {
   chainId: number;
