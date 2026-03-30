@@ -50,21 +50,16 @@ export function BridgeForm() {
     try { return parseUnits(amount, getDecimals(token, sourceChainId)); } catch { return undefined; }
   }, [token, amount, sourceChainId]);
 
-  const [protocolFeeNum, setProtocolFeeNum] = useState(0);
+  const [feeRate, setFeeRate] = useState<bigint>(BigInt(6000)); // PPM, default 0.6%
 
   useEffect(() => {
-    if (!amountParsed || !token) {
-      setProtocolFeeNum(0);
-      return;
-    }
-    // Default 0.6% protocol fee estimate
-    setProtocolFeeNum(parseFloat(amount) * 0.006);
+    if (!token) return;
 
     const bridgeAddr = CONTRACTS[sourceChainId]?.bridge;
     if (!bridgeAddr || isPlaceholderAddress(bridgeAddr)) return;
 
     // Fetch real fee rate from bridge contract
-    const fetchFees = async () => {
+    const fetchFeeRate = async () => {
       try {
         const rpc = getRpc(sourceChainId);
         const tkAddr = token.isNative ? '0x0000000000000000000000000000000000000000' : token.addresses[sourceChainId];
@@ -74,25 +69,23 @@ export function BridgeForm() {
         const hasCustomResult = await rpcCall(rpc, 'eth_call', [{ to: bridgeAddr, data: hasCustomData }, 'latest'], 5000);
         const hasCustom = hasCustomResult && hasCustomResult !== '0x' + '0'.repeat(64);
 
-        let feeRate: bigint;
+        let rate: bigint;
         if (hasCustom) {
           // bridgeFees(token) - selector 0x58db2eef
           const feeData = '0x58db2eef' + tkAddr.slice(2).padStart(64, '0');
           const feeResult = await rpcCall(rpc, 'eth_call', [{ to: bridgeAddr, data: feeData }, 'latest'], 5000);
-          feeRate = BigInt(feeResult);
+          rate = BigInt(feeResult);
         } else {
           // defaultBridgeFee() - selector 0x6ced0c92
           const feeResult = await rpcCall(rpc, 'eth_call', [{ to: bridgeAddr, data: '0x6ced0c92' }, 'latest'], 5000);
-          feeRate = BigInt(feeResult);
+          rate = BigInt(feeResult);
         }
 
-        // feeRate is in PPM (parts per million), so fee% = feeRate / 1_000_000
-        const feePercent = Number(feeRate) / 1_000_000;
-        setProtocolFeeNum(parseFloat(amount) * feePercent);
+        setFeeRate(rate);
       } catch { /* use default 0.6% */ }
     };
-    fetchFees();
-  }, [amountParsed, token, sourceChainId, targetChainId, address, amount]);
+    fetchFeeRate();
+  }, [token, sourceChainId]);
 
   const handleSwapDirection = () => {
     setSourceChainId(targetChainId);
@@ -124,10 +117,18 @@ export function BridgeForm() {
   };
 
   const decimals = token ? getDecimals(token, sourceChainId) : 18;
-  const receiveNum = amount ? parseFloat(amount) - protocolFeeNum : 0;
-  const precision = protocolFeeNum > 0 && protocolFeeNum < 0.000001 ? 10 : protocolFeeNum < 0.01 ? 8 : 6;
-  const fee = protocolFeeNum.toFixed(precision);
-  const receive = receiveNum > 0 ? receiveNum.toFixed(precision) : '0';
+
+  // BigInt fee calculation — avoids floating-point precision loss
+  const { fee, receive: receiveStr, receivePositive } = useMemo(() => {
+    if (!amountParsed || amountParsed <= BigInt(0)) {
+      return { fee: '0', receive: '0', receivePositive: false };
+    }
+    const feeBn = (amountParsed * feeRate) / BigInt(1_000_000);
+    const receiveBn = amountParsed - feeBn;
+    const feeFormatted = formatUnits(feeBn, decimals);
+    const receiveFormatted = formatUnits(receiveBn > BigInt(0) ? receiveBn : BigInt(0), decimals);
+    return { fee: feeFormatted, receive: receiveFormatted, receivePositive: receiveBn > BigInt(0) };
+  }, [amountParsed, feeRate, decimals]);
   const isActive = status !== 'idle' && status !== 'delivered' && status !== 'error';
 
   const chainContracts = CONTRACTS[sourceChainId];
@@ -231,8 +232,8 @@ export function BridgeForm() {
           </div>
           <div className="bg-bg-dark rounded-xl border border-gray-700/50 px-4 py-3">
             <div className="flex items-center justify-between">
-              <span className={`text-xl font-mono ${receiveNum > 0 ? 'text-white' : 'text-gray-600'}`}>
-                {receiveNum > 0 ? receive : '0.0'}
+              <span className={`text-xl font-mono ${receivePositive ? 'text-white' : 'text-gray-600'}`}>
+                {receivePositive ? receiveStr : '0.0'}
               </span>
               {token && (
                 <span className="text-sm text-gray-400 font-medium">{receiveSymbol}</span>
