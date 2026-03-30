@@ -80,13 +80,13 @@ export function TokenSelector({ tokens, selected, onSelect, sourceChainId, disab
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute z-50 w-full mt-2 bg-card border border-gray-700 rounded-xl shadow-2xl overflow-hidden">
+        <div className="absolute z-50 w-full mt-2 bg-card border border-gray-700 rounded-xl shadow-2xl max-h-[300px] overflow-y-auto">
           {tokens.map((token) => {
             const addr = token.addresses[sourceChainId];
-            const isSelected = selected?.symbol === token.symbol;
+            const isSelected = selected?.symbol === token.symbol && selected?.name === token.name;
             return (
               <button
-                key={token.symbol}
+                key={`${token.symbol}-${token.name}`}
                 type="button"
                 onClick={() => {
                   onSelect(token);

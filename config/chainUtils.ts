@@ -32,9 +32,13 @@ export function getConfiguredChainIds(): number[] {
   return Object.keys(config.chains).map(Number);
 }
 
-/** Returns all destination chains for a given source (every other chain). */
+/** Returns valid destination chains for a given source.
+ *  Hub-and-spoke: source chains can only bridge to BDAG, BDAG can bridge to any source chain. */
 export function getDestinationChains(sourceChainId: number): number[] {
-  return getConfiguredChainIds().filter(id => id !== sourceChainId);
+  if (sourceChainId === BDAG_CHAIN_ID) {
+    return getConfiguredChainIds().filter(id => id !== BDAG_CHAIN_ID);
+  }
+  return [BDAG_CHAIN_ID];
 }
 
 /** Lookup Hyperlane domain ID for a chain. */
