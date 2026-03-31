@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useAccount, useWriteContract, useReadContract } from 'wagmi';
 import { CONTRACTS } from '@/config/contracts';
 import { SUPPORTED_CHAINS } from '@/config/chains';
@@ -155,6 +156,26 @@ export default function AdminPage() {
             {!deployed && <span className="text-yellow-400 ml-2">(Bridge not deployed on this chain)</span>}
           </p>
         )}
+      </div>
+
+      {/* Admin Quick Links */}
+      <div className="flex flex-wrap gap-3">
+        <Link href="/balances"
+          className="px-4 py-2.5 rounded-lg text-sm font-semibold bg-orange-500/10 border border-orange-500/30 text-orange-400 hover:bg-orange-500/20 transition-colors">
+          Relayer Balances
+        </Link>
+        <Link href="/blast"
+          className="px-4 py-2.5 rounded-lg text-sm font-semibold bg-yellow-500/10 border border-yellow-500/30 text-[#FCFC03] hover:bg-yellow-500/20 transition-colors">
+          Blast Yield
+        </Link>
+        <Link href="/fees"
+          className="px-4 py-2.5 rounded-lg text-sm font-semibold bg-purple-500/10 border border-purple-500/30 text-purple-400 hover:bg-purple-500/20 transition-colors">
+          Fees
+        </Link>
+        <Link href="/liquidity"
+          className="px-4 py-2.5 rounded-lg text-sm font-semibold bg-blue-500/10 border border-blue-500/30 text-blue-400 hover:bg-blue-500/20 transition-colors">
+          Liquidity
+        </Link>
       </div>
 
       {/* Admin Grid */}
