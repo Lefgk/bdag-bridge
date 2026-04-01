@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/relayer/:path*",
+      "destination": "https://town-weblog-enlargement-persian.trycloudflare.com/:path*"
+    }
+  ]
+}

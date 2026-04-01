@@ -31,7 +31,7 @@ const nextConfig = {
     return [
       {
         source: '/api/relayer/:path*',
-        destination: 'http://localhost:3032/:path*',
+        destination: `${process.env.RELAYER_URL || 'http://localhost:3032'}/:path*`,
       },
     ];
   },
