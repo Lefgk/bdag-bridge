@@ -23,6 +23,7 @@ export interface BridgeTx {
   receiver: string;
   timestamp: number;
   delivered: boolean;
+  reverted: boolean;
 }
 
 function resolveTokenSymbol(tokenAddr: string, chainId: number): string {
@@ -102,14 +103,18 @@ export function useBridgeHistory() {
         const rawAmount = d.amount || '0';
         const amount = formatUnits(BigInt(rawAmount), decimals);
         const rawReleaseTx = d.tx_hash || '';
-        const isRealHash = rawReleaseTx.startsWith('0x') && rawReleaseTx.length === 66;
-        const delivered = !!(rawReleaseTx && rawReleaseTx !== 'pending' && rawReleaseTx !== 'reverted');
+        // Handle "reverted:0x..." format — extract the hash
+        const revertedMatch = rawReleaseTx.match(/^reverted:(0x[0-9a-fA-F]{64})$/);
+        const cleanReleaseTx = revertedMatch ? revertedMatch[1] : rawReleaseTx;
+        const isRealHash = cleanReleaseTx.startsWith('0x') && cleanReleaseTx.length === 66;
+        const isReverted = !!revertedMatch;
+        const delivered = !!(rawReleaseTx && rawReleaseTx !== 'pending' && rawReleaseTx !== 'reverted' && rawReleaseTx !== 'already-released');
         const depositKey = d.key || '';
         const depositNumber = depositKey.includes('_') ? depositKey.split('_')[1] : '';
 
         return {
           txHash: d.deposit_tx || '',
-          releaseTxHash: isRealHash ? rawReleaseTx : '',
+          releaseTxHash: isRealHash ? cleanReleaseTx : '',
           depositNumber,
           sourceChainId,
           destChainId,
@@ -119,6 +124,7 @@ export function useBridgeHistory() {
           receiver: d.receiver || '',
           timestamp: d.created_at || 0,
           delivered,
+          reverted: isReverted,
         };
       });
 

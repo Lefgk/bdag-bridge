@@ -29,7 +29,14 @@ function formatDate(timestamp?: number): string {
   });
 }
 
-function StatusBadge({ delivered }: { delivered: boolean }) {
+function StatusBadge({ delivered, reverted }: { delivered: boolean; reverted?: boolean }) {
+  if (reverted) {
+    return (
+      <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-red-500/15 text-red-400 border border-red-500/30">
+        Reverted
+      </span>
+    );
+  }
   if (delivered) {
     return (
       <span className="inline-block px-2 py-0.5 rounded text-xs font-semibold bg-green-500/15 text-green-400 border border-green-500/30">
@@ -240,9 +247,9 @@ export function TransactionHistory() {
                           href={explorerTxUrl(tx.releaseTxHash, tx.destChainId)}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-accent hover:text-accent-dim text-xs"
+                          className={`hover:text-accent-dim text-xs ${tx.reverted ? 'text-red-400' : 'text-accent'}`}
                         >
-                          {truncateHash(tx.releaseTxHash)}
+                          {tx.reverted ? 'Reverted' : truncateHash(tx.releaseTxHash)}
                         </a>
                       ) : (
                         <span className="text-gray-500 text-xs">—</span>
@@ -252,7 +259,7 @@ export function TransactionHistory() {
                       {isNaN(parseFloat(tx.amount)) ? '—' : `${parseFloat(tx.amount).toFixed(4)} ${tx.tokenSymbol}`}
                     </td>
                     <td className="py-2.5 text-right">
-                      <StatusBadge delivered={tx.delivered} />
+                      <StatusBadge delivered={tx.delivered} reverted={tx.reverted} />
                     </td>
                   </tr>
                 ))}
