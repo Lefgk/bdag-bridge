@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/relayer/:path*",
-      "destination": "http://100.54.90.121:3032/:path*"
+      "destination": "http://100.54.90.121:3001/:path*"
     }
   ]
 }
