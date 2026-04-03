@@ -71,6 +71,42 @@ export function TransactionHistory() {
   const [lookupResult, setLookupResult] = useState<LookupResult | null>(null);
   const [lookupError, setLookupError] = useState<string>();
   const [lookupDone, setLookupDone] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const [retryResult, setRetryResult] = useState<string>();
+  const [retryingTx, setRetryingTx] = useState<string>();
+
+  const handleRetryAll = async () => {
+    setRetrying(true);
+    setRetryResult(undefined);
+    try {
+      const res = await fetch('/api/relayer/retry-pending', { signal: AbortSignal.timeout(120000) });
+      const data = await res.json();
+      if (data.released > 0) {
+        setRetryResult(`Released ${data.released} of ${data.count} pending`);
+        refetch();
+      } else if (data.count === 0) {
+        setRetryResult('No pending deposits found');
+      } else {
+        setRetryResult(`${data.count} pending, 0 released — check relayer logs`);
+      }
+    } catch (err: any) {
+      setRetryResult(err.message || 'Retry failed');
+    } finally {
+      setRetrying(false);
+    }
+  };
+
+  const handleRetryTx = async (txHash: string) => {
+    setRetryingTx(txHash);
+    try {
+      const res = await fetch(`/api/relayer/check-tx/${txHash}`, { signal: AbortSignal.timeout(120000) });
+      const data = await res.json();
+      if (data.releaseTxHash && data.releaseTxHash.startsWith('0x')) {
+        refetch();
+      }
+    } catch { /* ignore */ }
+    finally { setRetryingTx(undefined); }
+  };
 
   const handleLookup = async () => {
     const hash = lookupHash.trim();
@@ -183,6 +219,13 @@ export function TransactionHistory() {
               Show only pending
             </label>
             <button
+              onClick={handleRetryAll}
+              disabled={retrying}
+              className="text-xs px-3 py-1 rounded-lg bg-yellow-500/10 text-yellow-400 border border-yellow-500/30 hover:bg-yellow-500/20 transition-colors disabled:opacity-40"
+            >
+              {retrying ? 'Retrying...' : 'Retry Pending'}
+            </button>
+            <button
               onClick={refetch}
               disabled={loading}
               className="text-xs px-3 py-1 rounded-lg bg-accent/10 text-accent border border-accent/30 hover:bg-accent/20 transition-colors disabled:opacity-40"
@@ -191,6 +234,12 @@ export function TransactionHistory() {
             </button>
           </div>
         </div>
+
+        {retryResult && (
+          <div className="mb-3 p-2 rounded bg-yellow-500/10 border border-yellow-500/20">
+            <p className="text-xs text-yellow-400">{retryResult}</p>
+          </div>
+        )}
 
         {error && (
           <div className="mb-3 p-2 rounded bg-red-500/10 border border-red-500/20">
@@ -260,6 +309,15 @@ export function TransactionHistory() {
                     </td>
                     <td className="py-2.5 text-right">
                       <StatusBadge delivered={tx.delivered} reverted={tx.reverted} />
+                      {!tx.delivered && !tx.reverted && tx.txHash && (
+                        <button
+                          onClick={() => handleRetryTx(tx.txHash)}
+                          disabled={retryingTx === tx.txHash}
+                          className="ml-2 text-xs px-2 py-0.5 rounded bg-yellow-500/10 text-yellow-400 border border-yellow-500/30 hover:bg-yellow-500/20 transition-colors disabled:opacity-40"
+                        >
+                          {retryingTx === tx.txHash ? '...' : 'Retry'}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
